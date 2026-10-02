@@ -3,6 +3,8 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns=%27http://www.w3.org/2000/svg%27 viewBox=%270 0 32 32%27%3E%3Crect width=%2732%27 height=%2732%27 rx=%278%27 fill=%27%23F2B705%27/%3E%3Cpath d=%27M16 6.5 25 11v10l-9 4.5L7 21V11l9-4.5Z%27 fill=%27%2315212B%27/%3E%3C/svg%3E">
+<meta name="theme-color" content="#15212B">
 <title>Masuk: Gudang tanpa kertas</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -23,11 +25,26 @@
 body{margin:0;min-height:100vh;background:var(--bg);color:var(--ink);font-family:var(--body);font-size:16px;line-height:1.5;
   padding:env(safe-area-inset-top,0px) 0 env(safe-area-inset-bottom,0px)}
 .stripe{height:10px;background:repeating-linear-gradient(-45deg,var(--accent) 0 14px,#15212B 14px 28px)}
-main{max-width:420px;margin:0 auto;padding:28px 16px 40px}
-.brand{display:flex;align-items:center;gap:12px;margin:0 0 6px}
-.brand svg{width:56px;height:56px;flex:none}
-h1{font-family:var(--cond);font-weight:700;font-size:32px;line-height:1;margin:0}
+.auth{display:grid;grid-template-columns:minmax(380px,44%) 1fr;min-height:100vh}
+.hero{background:#15212B;color:#C9D3DA;display:flex;flex-direction:column;padding:36px 48px;border-top:6px solid var(--accent);position:relative;overflow:hidden}
+.hero::after{content:"";position:absolute;left:0;right:0;bottom:0;height:12px;background:repeating-linear-gradient(-45deg,var(--accent) 0 14px,#15212B 14px 28px);opacity:.9}
+.hbrand{display:flex;align-items:center;gap:12px}
+.hbrand svg{width:42px;height:42px}
+.hbrand b{display:block;font-family:var(--cond);font-size:26px;line-height:1;color:#fff}
+.hbrand span{font-size:12px;letter-spacing:.08em;text-transform:uppercase;color:#7F909C}
+.hcopy{margin:auto 0;max-width:440px}
+.hcopy h2{font-family:var(--cond);font-weight:700;font-size:40px;line-height:1.08;color:#fff;margin:0 0 22px;text-wrap:balance}
+.hcopy ul{list-style:none;margin:0;padding:0;display:grid;gap:12px}
+.hcopy li{display:flex;gap:10px;align-items:flex-start;font-size:16px}
+.hcopy li svg{width:20px;height:20px;flex:none;margin-top:2px;fill:none;stroke:var(--accent);stroke-width:2.4;stroke-linecap:round;stroke-linejoin:round}
+.hfoot{font-size:13px;color:#7F909C;margin:0 0 14px}
+main{width:100%;max-width:420px;margin:auto;padding:40px 20px}
+.brand{display:none;align-items:center;gap:10px;margin:0 0 22px}
+.brand svg{width:38px;height:38px;flex:none}
+.brand b{font-family:var(--cond);font-size:22px}
+h1{font-family:var(--cond);font-weight:700;font-size:32px;line-height:1.1;margin:0 0 6px}
 .lead{color:var(--muted);margin:0 0 22px}
+@media (max-width:860px){.auth{display:block}.hero{display:none}.brand{display:flex}main{padding:32px 16px 40px}}
 .card{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:18px}
 .tabs{display:flex;gap:6px;background:var(--soft);border:1px solid var(--line);border-radius:10px;padding:4px;margin:0 0 16px}
 .tabs button{flex:1;border:0;background:transparent;color:var(--muted);font-family:var(--cond);font-size:19px;font-weight:600;border-radius:7px;min-height:42px;cursor:pointer}
@@ -49,14 +66,24 @@ input:focus-visible,button:focus-visible{outline:3px solid var(--accent);outline
 </style>
 </head>
 <body>
-<div class="stripe" aria-hidden="true"></div>
-<main>
-  <div class="brand">
-    <svg viewBox="0 0 64 64" aria-hidden="true"><line x1="32" y1="6" x2="32" y2="14" stroke="#15212B" stroke-width="2.5"/><circle cx="32" cy="6" r="3.5" fill="#F2B705" stroke="#15212B" stroke-width="2"/><path d="M10 22 L32 14 L54 22 L54 50 L32 58 L10 50 Z" fill="#C8955A" stroke="#15212B" stroke-width="2.5" stroke-linejoin="round"/><path d="M10 22 L32 30 L54 22 M32 30 L32 58" fill="none" stroke="#15212B" stroke-width="2.5" stroke-linejoin="round"/></svg>
-    <h1>Gudang tanpa kertas</h1>
+<div class="auth">
+<aside class="hero">
+  <div class="hbrand"><svg viewBox="0 0 32 32" aria-hidden="true"><rect width="32" height="32" rx="8" fill="#F2B705"/><path d="M16 6.5 25 11v10l-9 4.5L7 21V11l9-4.5Z" fill="#15212B"/><path d="m7 11 9 4.5 9-4.5M16 15.5v10" fill="none" stroke="#F2B705" stroke-width="1.6" stroke-linejoin="round"/></svg><div><b>Gudang</b><span>Tanpa kertas</span></div></div>
+  <div class="hcopy">
+    <h2>Penerimaan barang yang tercatat rapi, tanpa kertas.</h2>
+    <ul>
+      <li><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m5 12 4 4 10-10"/></svg>Cocokkan PO, surat jalan, dan barang fisik otomatis</li>
+      <li><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m5 12 4 4 10-10"/></svg>AI membaca surat jalan dan memeriksa foto barang</li>
+      <li><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m5 12 4 4 10-10"/></svg>Tanda tangan digital dan bukti terima (GRN)</li>
+      <li><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m5 12 4 4 10-10"/></svg>Stok real-time, persetujuan supervisor, log audit</li>
+    </ul>
   </div>
-  <p class="lead">Penerimaan barang dengan AI. Masuk untuk melanjutkan. Akun baru aktif setelah disetujui admin.</p>
-
+  <p class="hfoot">Gudang tanpa kertas · Sistem penerimaan barang</p>
+</aside>
+<main>
+  <div class="brand"><svg viewBox="0 0 32 32" aria-hidden="true"><rect width="32" height="32" rx="8" fill="#F2B705"/><path d="M16 6.5 25 11v10l-9 4.5L7 21V11l9-4.5Z" fill="#15212B"/><path d="m7 11 9 4.5 9-4.5M16 15.5v10" fill="none" stroke="#F2B705" stroke-width="1.6" stroke-linejoin="round"/></svg><b>Gudang tanpa kertas</b></div>
+  <h1>Masuk ke akun Anda</h1>
+  <p class="lead">Akun baru aktif setelah disetujui admin gudang.</p>
   <div class="card">
     <div class="tabs" role="tablist">
       <button role="tab" id="t-login" aria-selected="true" aria-controls="f">Masuk</button>
@@ -81,6 +108,7 @@ input:focus-visible,button:focus-visible{outline:3px solid var(--accent);outline
     <p class="switch" id="switch"></p>
   </div>
 </main>
+</div>
 <script>
 (function () {
   const $ = (s) => document.querySelector(s);
@@ -98,6 +126,7 @@ input:focus-visible,button:focus-visible{outline:3px solid var(--accent);outline
     $('#confirmbox').hidden = !reg;
     $('#password').autocomplete = reg ? 'new-password' : 'current-password';
     $('#submit').textContent = reg ? 'Daftar' : 'Masuk';
+    $('main h1').textContent = reg ? 'Buat akun baru' : 'Masuk ke akun Anda';
     $('#switch').innerHTML = reg
       ? 'Sudah punya akun? <button type="button" data-m="login">Masuk</button>'
       : 'Belum punya akun? <button type="button" data-m="register">Daftar</button>';

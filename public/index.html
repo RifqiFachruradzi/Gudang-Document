@@ -3,6 +3,8 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns=%27http://www.w3.org/2000/svg%27 viewBox=%270 0 32 32%27%3E%3Crect width=%2732%27 height=%2732%27 rx=%278%27 fill=%27%23F2B705%27/%3E%3Cpath d=%27M16 6.5 25 11v10l-9 4.5L7 21V11l9-4.5Z%27 fill=%27%2315212B%27/%3E%3C/svg%3E">
+<meta name="theme-color" content="#15212B">
 <title>Gudang AI: penerimaan barang</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -26,16 +28,15 @@
   --ok:#6FD39A;--ok-bg:#173526;--warn:#F5C451;--warn-bg:#3A2E0F;--bad:#FF8A80;--bad-bg:#3E1A18;}
 *,*::before,*::after{box-sizing:inherit}
 html{scroll-padding-top:env(safe-area-inset-top,0px)}
-body{margin:0;background:var(--bg);color:var(--ink);font-family:var(--body);font-size:16px;line-height:1.5;padding-bottom:84px}
+body{margin:0;background:var(--bg);color:var(--ink);font-family:var(--body);font-size:16px;line-height:1.5}
 img{max-width:100%}
 .stripe{height:10px;background:repeating-linear-gradient(-45deg,var(--accent) 0 14px,#15212B 14px 28px)}
-.top .bar{max-width:760px;margin:0 auto;padding:16px 18px 6px;display:flex;justify-content:space-between;align-items:flex-end;gap:12px}
 h1{font-family:var(--cond);font-weight:700;font-size:30px;line-height:1;margin:0;letter-spacing:.2px}
 h2{font-family:var(--cond);font-weight:600;font-size:22px;margin:0 0 10px}
 h3{font-family:var(--cond);font-weight:600;font-size:18px;margin:0 0 6px}
 .mode{font-size:13px;color:var(--muted);margin:4px 0 0}
-main{max-width:760px;margin:0 auto;padding:10px 14px 24px}
-.card{background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:16px;margin:0 0 14px}
+main{width:100%;max-width:1180px;padding:24px 28px 40px}
+.card{background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:18px;margin:0 0 16px;box-shadow:0 1px 2px rgba(21,33,43,.05)}
 .muted{color:var(--muted)}.small{font-size:14px}
 .row{display:flex;gap:10px;align-items:center;flex-wrap:wrap}
 .between{justify-content:space-between}
@@ -70,9 +71,6 @@ label.file{display:inline-flex;align-items:center;justify-content:center;font-we
 label.file input{position:absolute;opacity:0;width:1px;height:1px}
 .ai{border-left:4px solid var(--accent);border-radius:0;background:var(--soft);padding:10px 12px;margin-top:10px;font-size:15px}
 .ai ul{margin:6px 0 0;padding-left:18px}
-.tabs{position:fixed;left:0;right:0;bottom:0;background:var(--panel);border-top:1px solid var(--line);display:flex;justify-content:center;padding-bottom:env(safe-area-inset-bottom,0px);z-index:5}
-.tabs button{flex:1;max-width:190px;border:0;border-radius:0;background:transparent;font-family:var(--cond);font-size:18px;padding:12px 4px;border-top:4px solid transparent;color:var(--muted)}
-.tabs button[aria-current="true"]{color:var(--ink);border-top-color:var(--accent)}
 #toast{position:fixed;left:50%;transform:translateX(-50%);bottom:calc(80px + env(safe-area-inset-bottom,0px));background:var(--ink);color:var(--bg);padding:10px 16px;border-radius:8px;font-weight:500;max-width:90vw;opacity:0;pointer-events:none;transition:opacity .2s;z-index:9}
 #toast.on{opacity:1}
 .itemrow{display:grid;grid-template-columns:1fr 1fr;gap:8px;border-top:1px solid var(--line);padding-top:10px;margin-top:10px}
@@ -119,9 +117,6 @@ label.file input{position:absolute;opacity:0;width:1px;height:1px}
 .bnote{font-size:12px;color:var(--muted);text-align:center;margin:6px 0 0}
 .dots::after{content:"…"}
 @media (prefers-reduced-motion:reduce){#toast{transition:none}}
-.who{display:flex;flex-direction:column;align-items:flex-end;gap:4px;text-align:right}
-.who .row{gap:6px;justify-content:flex-end;flex-wrap:nowrap}
-.who button{min-height:36px;padding:4px 10px;font-size:14px}
 .role{display:inline-block;font-size:12px;font-weight:600;letter-spacing:.04em;text-transform:uppercase;border-radius:4px;padding:1px 6px;background:var(--soft);border:1px solid var(--line);color:var(--muted)}
 .toolbar{display:flex;gap:8px;flex-wrap:wrap;align-items:center;justify-content:space-between;margin:0 0 12px}
 .toolbar h2{margin:0}
@@ -138,30 +133,118 @@ label.file input{position:absolute;opacity:0;width:1px;height:1px}
 .log:last-child{border-bottom:0}
 .log time{color:var(--muted);font-size:13px;display:block}
 .note{background:var(--warn-bg);color:var(--warn);border-radius:8px;padding:10px 12px;font-size:14px;margin-top:12px}
+/* ---------- app shell ---------- */
+:root{--side:#15212B;--side-ink:#C9D3DA;--side-mute:#7F909C;--side-hover:#1F2E3A}
+.shell{display:flex;min-height:100vh}
+.side{position:sticky;top:0;height:100vh;width:248px;flex:none;background:var(--side);color:var(--side-ink);display:flex;flex-direction:column;padding:18px 12px;border-top:4px solid var(--accent)}
+.brand{display:flex;align-items:center;gap:10px;padding:4px 10px 22px}
+.brand svg{width:36px;height:36px;flex:none}
+.brand b{display:block;font-family:var(--cond);font-size:22px;line-height:1;color:#fff;letter-spacing:.3px}
+.brand span{font-size:12px;letter-spacing:.08em;text-transform:uppercase;color:var(--side-mute)}
+.sidenav{display:flex;flex-direction:column;gap:2px}
+.sidenav button{display:flex;align-items:center;gap:12px;width:100%;border:0;background:transparent;color:var(--side-ink);font-family:var(--body);font-weight:500;font-size:15px;text-align:left;padding:10px 12px;min-height:44px;border-radius:8px;position:relative}
+.sidenav button:hover{background:var(--side-hover);color:#fff}
+.sidenav button[aria-current="true"]{background:var(--side-hover);color:#fff}
+.sidenav button[aria-current="true"]::before{content:"";position:absolute;left:-12px;top:8px;bottom:8px;width:4px;border-radius:0 3px 3px 0;background:var(--accent)}
+.sidenav button[aria-current="true"] .ic{color:var(--accent)}
+.sidenav button[hidden]{display:none}
+.sidefoot{margin:auto 10px 0;font-size:12px;color:var(--side-mute);line-height:1.4}
+.ic{width:20px;height:20px;flex:none;fill:none;stroke:currentColor;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round}
+.mainwrap{flex:1;min-width:0;display:flex;flex-direction:column}
+.topbar{position:sticky;top:0;z-index:6;display:flex;align-items:center;gap:14px;background:var(--panel);border-bottom:1px solid var(--line);padding:12px 24px;padding-top:calc(12px + env(safe-area-inset-top,0px))}
+.tb-brand{display:none}
+.tb-brand svg{width:34px;height:34px;display:block}
+.tb-title{flex:1;min-width:0}
+.tb-title h1{font-family:var(--cond);font-weight:700;font-size:24px;line-height:1.1;margin:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.tb-title p{margin:2px 0 0;font-size:13px;color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.tb-title p:empty{display:none}
+.usermenu{position:relative}
+.ubtn{display:flex;align-items:center;gap:10px;border:1px solid transparent;background:transparent;padding:4px 8px 4px 4px;border-radius:999px;min-height:44px;font-weight:500}
+.ubtn:hover,.ubtn[aria-expanded="true"]{background:var(--soft);border-color:var(--line)}
+.avatar{width:36px;height:36px;border-radius:50%;background:var(--accent);color:var(--accent-ink);display:flex;align-items:center;justify-content:center;font-family:var(--cond);font-weight:700;font-size:16px;flex:none}
+.uname{display:flex;flex-direction:column;align-items:flex-start;line-height:1.15;text-align:left}
+.uname b{font-size:14px;font-weight:600;max-width:160px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.uname span{font-size:12px;color:var(--muted)}
+.ubtn .ic{width:16px;height:16px;color:var(--muted)}
+.umenu{position:absolute;right:0;top:calc(100% + 6px);min-width:230px;background:var(--panel);border:1px solid var(--line);border-radius:10px;box-shadow:0 12px 32px rgba(0,0,0,.18);padding:6px;z-index:20}
+.umhead{padding:8px 10px 10px;border-bottom:1px solid var(--line);margin-bottom:6px}
+.umhead b{display:block;font-size:15px}
+.umhead span{font-size:13px;color:var(--muted);overflow-wrap:anywhere}
+.umenu button{display:flex;align-items:center;gap:10px;width:100%;border:0;background:transparent;text-align:left;font-weight:500;font-size:15px;padding:8px 10px;min-height:40px;border-radius:6px}
+.umenu button:hover{background:var(--soft)}
+.umenu button.danger{color:var(--bad)}
+.tabs{display:none}
+/* beranda */
+.kpis{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:14px;margin:0 0 16px}
+.kpi{background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:14px 16px;text-align:left;font-weight:400;min-height:0;display:block;width:100%;box-shadow:0 1px 2px rgba(21,33,43,.05)}
+button.kpi:hover{border-color:var(--muted)}
+.kpi .k{font-size:13px;color:var(--muted);display:flex;align-items:center;gap:6px}
+.kpi .k .ic{width:16px;height:16px}
+.kpi .v{font-family:var(--cond);font-size:34px;font-weight:700;line-height:1.1;margin-top:4px;font-variant-numeric:tabular-nums}
+.kpi .s{font-size:13px;color:var(--muted)}
+.kpi.alert{border-color:var(--bad);background:var(--bad-bg)}
+.kpi.alert .v,.kpi.alert .k{color:var(--bad)}
+.grid2{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:16px}
+.card .toolbar{flex-wrap:nowrap}
+.linkbtn{border:0;background:none;min-height:36px;padding:4px 2px;font-size:14px;font-weight:600;color:var(--ink);text-decoration:underline;text-underline-offset:3px;flex:none}
+.list{list-style:none;margin:0;padding:0}
+.list li{display:flex;justify-content:space-between;align-items:center;gap:10px;padding:10px 0;border-bottom:1px solid var(--line)}
+.list li:last-child{border-bottom:0}
+.list li>div{min-width:0}
+.list button{min-height:36px;padding:4px 12px;font-size:14px;flex:none}
+.hello-band{display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap;margin:0 0 16px}
+.hello-band h2{font-size:26px;margin:0}
+@media (max-width:1000px){.kpis{grid-template-columns:repeat(2,minmax(0,1fr))}}
+@media (max-width:900px){
+  .side{display:none}
+  .tb-brand{display:block}
+  .topbar{padding:10px 14px;padding-top:calc(10px + env(safe-area-inset-top,0px))}
+  .tb-title h1{font-size:21px}
+  .uname,.ubtn>.ic{display:none}
+  .ubtn{padding:2px;border-radius:50%}
+  main{padding:14px 14px calc(96px + env(safe-area-inset-bottom,0px))}
+  .tabs{display:flex;position:fixed;left:0;right:0;bottom:0;z-index:5;background:var(--panel);border-top:1px solid var(--line);padding-bottom:env(safe-area-inset-bottom,0px)}
+  .tabs button{flex:1;display:flex;flex-direction:column;align-items:center;gap:3px;border:0;border-radius:0;background:transparent;color:var(--muted);font-size:11.5px;font-weight:600;padding:8px 2px 7px;min-height:58px;position:relative}
+  .tabs button[hidden]{display:none}
+  .tabs button .ic{width:22px;height:22px}
+  .tabs button[aria-current="true"]{color:var(--ink)}
+  .tabs button[aria-current="true"]::before{content:"";position:absolute;top:0;left:22%;right:22%;height:3px;border-radius:0 0 3px 3px;background:var(--accent)}
+  .grid2{grid-template-columns:1fr}
+}
+@media (min-width:901px){.fab{bottom:24px;right:24px}#toast{bottom:28px}}
 @media print{
   body{background:#fff;color:#000;padding:0}
-  .top,.tabs,.fab,.buddy,#toast,.noprint{display:none!important}
+  .side,.topbar,.tabs,.fab,.buddy,#toast,.noprint{display:none!important}
+  .shell{display:block}
   .card{border:0;padding:0}
   main{max-width:none;padding:0}
 }
 </style>
 </head>
 <body>
-<header class="top">
-  <div class="stripe" aria-hidden="true"></div>
-  <div class="bar">
-    <div><h1>Gudang tanpa kertas</h1><p class="mode" id="mode">Menyiapkan data…</p></div>
-    <div id="who" class="who small muted" hidden><span><span id="whoname"></span> <span class="role" id="whorole"></span></span><span class="row"><button class="ghost" data-act="akun">Akun</button><button class="ghost" id="logout">Keluar</button></span></div>
+<div class="shell">
+<aside class="side" aria-label="Navigasi utama">
+  <div class="brand"><svg viewBox="0 0 32 32" aria-hidden="true"><rect width="32" height="32" rx="8" fill="#F2B705"/><path d="M16 6.5 25 11v10l-9 4.5L7 21V11l9-4.5Z" fill="#15212B"/><path d="m7 11 9 4.5 9-4.5M16 15.5v10" fill="none" stroke="#F2B705" stroke-width="1.6" stroke-linejoin="round"/></svg><div><b>Gudang</b><span>Tanpa kertas</span></div></div>
+  <nav class="sidenav" aria-label="Menu utama"><button data-tab="beranda"><svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="3" width="7" height="9" rx="1.5"/><rect x="14" y="3" width="7" height="5" rx="1.5"/><rect x="14" y="12" width="7" height="9" rx="1.5"/><rect x="3" y="16" width="7" height="5" rx="1.5"/></svg><span>Beranda</span></button><button data-tab="terima"><svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><path d="M21 8 12 3 3 8v8l9 5 9-5V8Z"/><path d="m3 8 9 5 9-5M12 13v8"/><path d="m8.5 16.5 2 2 4-4" /></svg><span>Terima barang</span></button><button data-tab="po"><svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><path d="M9 3h6a1 1 0 0 1 1 1v1H8V4a1 1 0 0 1 1-1Z"/><path d="M16 5h2a1 1 0 0 1 1 1v14a1 1 0 0 1-1 1H6a1 1 0 0 1-1-1V6a1 1 0 0 1 1-1h2"/><path d="M9 11h6M9 15h4"/></svg><span>Purchase order</span></button><button data-tab="stok"><svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><path d="m12 3 9 4.5-9 4.5-9-4.5L12 3Z"/><path d="m3 12 9 4.5 9-4.5"/><path d="m3 16.5 9 4.5 9-4.5"/></svg><span>Stok</span></button><button data-tab="riwayat"><svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><path d="M3 12a9 9 0 1 0 3-6.7L3 8"/><path d="M3 3v5h5"/><path d="M12 7v5l3 2"/></svg><span>Riwayat</span></button><button data-tab="admin" class="navadmin" hidden><svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3 4 6v6c0 4.5 3.4 8 8 9 4.6-1 8-4.5 8-9V6l-8-3Z"/><path d="m9 12 2 2 4-4"/></svg><span>Admin</span></button></nav>
+  <p class="sidefoot" id="mode">Menyiapkan data…</p>
+</aside>
+<div class="mainwrap">
+<header class="topbar">
+  <div class="tb-brand"><svg viewBox="0 0 32 32" aria-hidden="true"><rect width="32" height="32" rx="8" fill="#F2B705"/><path d="M16 6.5 25 11v10l-9 4.5L7 21V11l9-4.5Z" fill="#15212B"/><path d="m7 11 9 4.5 9-4.5M16 15.5v10" fill="none" stroke="#F2B705" stroke-width="1.6" stroke-linejoin="round"/></svg></div>
+  <div class="tb-title"><h1 id="pagetitle">Beranda</h1><p id="pagesub"></p></div>
+  <div class="usermenu" id="who" hidden>
+    <button class="ubtn" id="ubtn" aria-haspopup="menu" aria-expanded="false" aria-controls="umenu"><span class="avatar" id="whoav"></span><span class="uname"><b id="whoname"></b><span id="whorole"></span></span><svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><path d="m6 9 6 6 6-6"/></svg></button>
+    <div class="umenu" id="umenu" role="menu" hidden>
+      <div class="umhead"><b id="whoname2"></b><span id="whoemail"></span></div>
+      <button role="menuitem" data-act="akun"><svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="8" r="4"/><path d="M4 21a8 8 0 0 1 16 0"/></svg>Akun saya</button>
+      <button role="menuitem" id="logout" class="danger"><svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><path d="M15 4h3a2 2 0 0 1 2 2v12a2 2 0 0 1-2 2h-3"/><path d="M10 17l-5-5 5-5M5 12h11"/></svg>Keluar</button>
+    </div>
   </div>
 </header>
 <main id="app" aria-live="polite"></main>
-<nav class="tabs" aria-label="Menu utama">
-  <button data-tab="terima">Terima barang</button>
-  <button data-tab="po">PO</button>
-  <button data-tab="stok">Stok</button>
-  <button data-tab="riwayat">Riwayat</button>
-  <button data-tab="admin" id="tabadmin" hidden>Admin</button>
-</nav>
+</div>
+</div>
+<nav class="tabs" aria-label="Menu utama"><button data-tab="beranda"><svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="3" width="7" height="9" rx="1.5"/><rect x="14" y="3" width="7" height="5" rx="1.5"/><rect x="14" y="12" width="7" height="9" rx="1.5"/><rect x="3" y="16" width="7" height="5" rx="1.5"/></svg><span>Beranda</span></button><button data-tab="terima"><svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><path d="M21 8 12 3 3 8v8l9 5 9-5V8Z"/><path d="m3 8 9 5 9-5M12 13v8"/><path d="m8.5 16.5 2 2 4-4" /></svg><span>Terima</span></button><button data-tab="po"><svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><path d="M9 3h6a1 1 0 0 1 1 1v1H8V4a1 1 0 0 1 1-1Z"/><path d="M16 5h2a1 1 0 0 1 1 1v14a1 1 0 0 1-1 1H6a1 1 0 0 1-1-1V6a1 1 0 0 1 1-1h2"/><path d="M9 11h6M9 15h4"/></svg><span>PO</span></button><button data-tab="stok"><svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><path d="m12 3 9 4.5-9 4.5-9-4.5L12 3Z"/><path d="m3 12 9 4.5 9-4.5"/><path d="m3 16.5 9 4.5 9-4.5"/></svg><span>Stok</span></button><button data-tab="riwayat"><svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><path d="M3 12a9 9 0 1 0 3-6.7L3 8"/><path d="M3 3v5h5"/><path d="M12 7v5l3 2"/></svg><span>Riwayat</span></button><button data-tab="admin" class="navadmin" hidden><svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3 4 6v6c0 4.5 3.4 8 8 9 4.6-1 8-4.5 8-9V6l-8-3Z"/><path d="m9 12 2 2 4-4"/></svg><span>Admin</span></button></nav>
 <button class="fab" id="fab" aria-label="Buka Gudi, asisten AI gudang"><svg viewBox="0 0 64 64" aria-hidden="true"><line x1="32" y1="6" x2="32" y2="14" stroke="#15212B" stroke-width="2.5"/><circle cx="32" cy="6" r="3.5" fill="#F2B705" stroke="#15212B" stroke-width="2"/><path d="M10 22 L32 14 L54 22 L54 50 L32 58 L10 50 Z" fill="#C8955A" stroke="#15212B" stroke-width="2.5" stroke-linejoin="round"/><path d="M10 22 L32 30 L54 22" fill="none" stroke="#15212B" stroke-width="2.5" stroke-linejoin="round"/><path d="M32 30 L32 58" stroke="#15212B" stroke-width="2"/><rect x="14" y="34" width="36" height="8" fill="#F2B705" transform="skewY(0)"/><circle cx="23" cy="45" r="3" fill="#15212B"/><circle cx="41" cy="45" r="3" fill="#15212B"/><path d="M27 51 Q32 54 37 51" fill="none" stroke="#15212B" stroke-width="2" stroke-linecap="round"/></svg></button>
 <section class="buddy" id="buddy" hidden aria-label="Gudi, asisten AI gudang">
   <div class="bhead"><div class="av"><svg viewBox="0 0 64 64" aria-hidden="true"><line x1="32" y1="6" x2="32" y2="14" stroke="#15212B" stroke-width="2.5"/><circle cx="32" cy="6" r="3.5" fill="#F2B705" stroke="#15212B" stroke-width="2"/><path d="M10 22 L32 14 L54 22 L54 50 L32 58 L10 50 Z" fill="#C8955A" stroke="#15212B" stroke-width="2.5" stroke-linejoin="round"/><path d="M10 22 L32 30 L54 22" fill="none" stroke="#15212B" stroke-width="2.5" stroke-linejoin="round"/><path d="M32 30 L32 58" stroke="#15212B" stroke-width="2"/><rect x="14" y="34" width="36" height="8" fill="#F2B705" transform="skewY(0)"/><circle cx="23" cy="45" r="3" fill="#15212B"/><circle cx="41" cy="45" r="3" fill="#15212B"/><path d="M27 51 Q32 54 37 51" fill="none" stroke="#15212B" stroke-width="2" stroke-linecap="round"/></svg></div><div style="flex:1"><b>Gudi</b><span>Asisten AI gudang Anda</span></div><button data-b="new" aria-label="Mulai obrolan baru">Baru</button><button data-b="close" aria-label="Tutup">Tutup</button></div>
@@ -181,7 +264,7 @@ const clone=o=>JSON.parse(JSON.stringify(o||{}));
 const COLS=['pos','stok','grn','config'];
 const state={pos:{},stok:{},grn:{},config:{}};
 let ready=false,backend=null,db=null,user=null,uid=null,sample=null,caps=null,readOnly=false;
-let tab='terima',rx=null,poDraft=null,grnView=null,stokQ='',ai={busy:null};
+let tab='beranda',rx=null,poDraft=null,grnView=null,stokQ='',ai={busy:null};
 let myRole='petugas',grnFilter='semua',adminData=null,adminBusy=false;
 const ROLES=['viewer','petugas','supervisor','admin'],ROLE_LABEL={viewer:'Viewer',petugas:'Petugas',supervisor:'Supervisor',admin:'Admin'};
 const can=r=>ROLES.indexOf(myRole)>=ROLES.indexOf(r);
@@ -205,8 +288,12 @@ async function init(){
   try{sample=window.claude?await window.claude.use('sample'):null;caps=sample?await sample.limits().catch(()=>null):null}catch(e){}
   try{if(user){const m=await user.me();meName=m.name||'';myRole=m.role||'petugas'}}catch(e){}
   readOnly=!can('petugas');
-  if(meName&&window.gudangLogout){$('#whoname').textContent=meName;$('#whorole').textContent=ROLE_LABEL[myRole]||myRole;$('#who').hidden=false;$('#logout').onclick=()=>window.gudangLogout()}
-  $('#tabadmin').hidden=!can('admin');
+  if(meName&&window.gudangLogout){
+    const ini=meName.split(/\s+/).filter(Boolean).slice(0,2).map(w=>w[0].toUpperCase()).join('');
+    $('#whoav').textContent=ini||'?';$('#whoname').textContent=meName;$('#whoname2').textContent=meName;$('#whoemail').textContent=(uid||'')+' · '+(ROLE_LABEL[myRole]||myRole);
+    $('#whorole').textContent=ROLE_LABEL[myRole]||myRole;$('#who').hidden=false;$('#logout').onclick=()=>window.gudangLogout();
+  }
+  document.querySelectorAll('.navadmin').forEach(b=>b.hidden=!can('admin'));
   render();if(!$('#buddy').hidden)renderChat();
 }
 async function put(col,id,data){
@@ -374,6 +461,29 @@ async function resolveNames(ids){
   try{const ps=await user.profiles(need);let ch=false;need.forEach(i=>{const n=ps?.[i]?.name||'';if(n){names[i]=n;ch=true}});if(ch)render()}catch(e){}
 }
 
+function viewBeranda(){
+  const grn=Object.values(state.grn).sort((a,b)=>String(b.waktu).localeCompare(String(a.waktu)));
+  resolveNames(grn.slice(0,6).map(g=>g.petugas).filter(Boolean));
+  const today=new Date().toDateString();
+  const open=Object.entries(state.pos).filter(([,p])=>p.status!=='Diterima').sort((a,b)=>String(a[1].tanggal).localeCompare(String(b[1].tanggal)));
+  const held=grn.filter(g=>g.keputusan==='Ditahan'),todayN=grn.filter(g=>new Date(g.waktu).toDateString()===today).length;
+  const stok=Object.values(state.stok),units=stok.reduce((a,s)=>a+(Number(s.qty)||0),0);
+  const chip=g=>`<span class="chip ${g.keputusan.startsWith('Diterima')?(g.hasil==='Diterima'?'c-ok':'c-warn'):'c-bad'}">${esc(g.keputusan)}</span>`;
+  const hour=new Date().getHours(),greet=hour<11?'Selamat pagi':hour<15?'Selamat siang':hour<18?'Selamat sore':'Selamat malam';
+  return`<div class="hello-band"><div><h2>${greet}, ${esc((meName||'').split(' ')[0]||'tim gudang')}</h2><p class="muted small" style="margin:2px 0 0">${new Date().toLocaleDateString('id-ID',{weekday:'long',day:'numeric',month:'long',year:'numeric'})}</p></div>${readOnly?'':`<button class="primary" data-tab="terima">Terima barang</button>`}</div>
+  <div class="kpis">
+    <button class="kpi" data-tab="terima"><span class="k"><svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><path d="M9 3h6a1 1 0 0 1 1 1v1H8V4a1 1 0 0 1 1-1Z"/><path d="M16 5h2a1 1 0 0 1 1 1v14a1 1 0 0 1-1 1H6a1 1 0 0 1-1-1V6a1 1 0 0 1 1-1h2"/><path d="M9 11h6M9 15h4"/></svg>PO menunggu</span><div class="v">${fmt(open.length)}</div><span class="s">kiriman belum diterima</span></button>
+    <button class="kpi ${held.length?'alert':''}" data-tab="riwayat" data-f="ditahan"><span class="k"><svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3 4 6v6c0 4.5 3.4 8 8 9 4.6-1 8-4.5 8-9V6l-8-3Z"/><path d="m9 12 2 2 4-4"/></svg>Ditahan</span><div class="v">${fmt(held.length)}</div><span class="s">${held.length?'perlu persetujuan supervisor':'tidak ada yang tertahan'}</span></button>
+    <button class="kpi" data-tab="riwayat"><span class="k"><svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><path d="M3 12a9 9 0 1 0 3-6.7L3 8"/><path d="M3 3v5h5"/><path d="M12 7v5l3 2"/></svg>Diterima hari ini</span><div class="v">${fmt(todayN)}</div><span class="s">${fmt(grn.length)} penerimaan total</span></button>
+    <button class="kpi" data-tab="stok"><span class="k"><svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><path d="m12 3 9 4.5-9 4.5-9-4.5L12 3Z"/><path d="m3 12 9 4.5 9-4.5"/><path d="m3 16.5 9 4.5 9-4.5"/></svg>Jenis barang</span><div class="v">${fmt(stok.length)}</div><span class="s">${fmt(units)} unit di gudang</span></button>
+  </div>
+  <div class="grid2">
+    <section class="card"><div class="toolbar"><h3 style="margin:0">PO menunggu kiriman</h3><button class="linkbtn" data-tab="po">Lihat semua</button></div>
+      ${open.length?`<ul class="list">${open.slice(0,5).map(([id,p])=>`<li><div><b>${esc(p.no)}</b><div class="small muted">${esc(p.supplier)}, ${p.items.length} jenis barang</div></div>${readOnly?'':`<button data-act="start" data-id="${esc(id)}">Terima</button>`}</li>`).join('')}</ul>`:'<p class="muted small" style="margin:0">Semua PO sudah diterima.</p>'}</section>
+    <section class="card"><div class="toolbar"><h3 style="margin:0">Penerimaan terakhir</h3><button class="linkbtn" data-tab="riwayat">Lihat semua</button></div>
+      ${grn.length?`<ul class="list">${grn.slice(0,5).map(g=>`<li><div><b>${esc(g.poNo)}</b><div class="small muted">${esc(g.supplier)} · ${new Date(g.waktu).toLocaleString('id-ID',{day:'numeric',month:'short',hour:'2-digit',minute:'2-digit'})}${names[g.petugas]?' · '+esc(names[g.petugas]):''}</div></div>${chip(g)}</li>`).join('')}</ul>`:'<p class="muted small" style="margin:0">Belum ada penerimaan.</p>'}</section>
+  </div>`;
+}
 function viewAkun(){
   return`<h2>Akun saya</h2>
   <div class="card"><p style="margin:0">${esc(meName)} <span class="role">${esc(ROLE_LABEL[myRole]||myRole)}</span></p><p class="small muted" style="margin:4px 0 0">${esc(uid||'')}</p></div>
@@ -435,11 +545,13 @@ function csvGRN(){
 }
 
 function render(){
-  document.querySelectorAll('.tabs button').forEach(b=>b.setAttribute('aria-current',b.dataset.tab===tab?'true':'false'));
+  document.querySelectorAll('[data-tab]').forEach(b=>b.setAttribute('aria-current',b.dataset.tab===tab?'true':'false'));
+  const T={beranda:['Beranda','Ringkasan aktivitas gudang'],terima:['Terima barang','Verifikasi kiriman terhadap PO dan surat jalan'],po:['Purchase order','Daftar PO dan aturan verifikasi'],stok:['Stok','Jumlah barang per lokasi rak'],riwayat:['Riwayat penerimaan','Bukti terima digital (GRN)'],akun:['Akun saya','Profil dan kata sandi'],admin:['Admin','Pengguna dan log audit']}[tab]||['Gudang',''];
+  $('#pagetitle').textContent=T[0];$('#pagesub').textContent=T[1];document.title=T[0]+' · Gudang tanpa kertas';
   if(!ready){$('#app').innerHTML='<p class="muted">Memuat data gudang…</p>';return}
   const a=document.activeElement,id=a&&a.id;let ss=null,se=null;try{ss=a.selectionStart;se=a.selectionEnd}catch(e){}
   if(tab==='admin'&&!can('admin'))tab='terima';
-  $('#app').innerHTML=tab==='terima'?viewTerima():tab==='po'?viewPO():tab==='stok'?viewStok():tab==='akun'?viewAkun():tab==='admin'?viewAdmin():viewRiwayat();
+  $('#app').innerHTML=tab==='beranda'?viewBeranda():tab==='terima'?viewTerima():tab==='po'?viewPO():tab==='stok'?viewStok():tab==='akun'?viewAkun():tab==='admin'?viewAdmin():viewRiwayat();
   bindSign();
   if(id){const el=document.getElementById(id);if(el){el.focus({preventScroll:true});try{if(ss!=null)el.setSelectionRange(ss,se)}catch(e){}}}
 }
@@ -505,7 +617,11 @@ async function saveGRN(){
 }
 
 document.addEventListener('click',async e=>{
-  const tb=e.target.closest('.tabs button');if(tb){tab=tb.dataset.tab;grnView=null;render();window.scrollTo(0,0);return}
+  const um=$('#umenu');
+  if(e.target.closest('#ubtn')){const open=um.hidden;um.hidden=!open;$('#ubtn').setAttribute('aria-expanded',String(open));return}
+  if(!um.hidden&&!e.target.closest('#umenu')){um.hidden=true;$('#ubtn').setAttribute('aria-expanded','false')}
+  if(e.target.closest('#umenu [role=menuitem]')){um.hidden=true;$('#ubtn').setAttribute('aria-expanded','false')}
+  const tb=e.target.closest('[data-tab]');if(tb){tab=tb.dataset.tab;grnView=null;if(tb.dataset.f)grnFilter=tb.dataset.f;render();window.scrollTo(0,0);return}
   const b=e.target.closest('[data-act]');if(!b)return;const act=b.dataset.act;
   if(act==='start')startRx(b.dataset.id);
   else if(act==='cancelrx'){rx=null;render()}
@@ -628,7 +744,7 @@ $('#buddy').addEventListener('click',e=>{const b=e.target.closest('[data-b]');if
   else if(a==='unfile'){bFile=null;renderChat()}});
 $('#buddy').addEventListener('change',e=>{if(e.target.id==='bfile'&&e.target.files?.length){const f=e.target.files[0];if(caps?.images&&f.size>caps.images.maxInputBytes){toast('Foto terlalu besar');return}bFile=f;renderChat();$('#bq').focus()}});
 $('#bq').addEventListener('keydown',e=>{if(e.key==='Enter'&&!e.shiftKey){e.preventDefault();if(!bBusy)sendBuddy(e.target.value)}});
-document.addEventListener('keydown',e=>{if(e.key==='Escape'&&!$('#buddy').hidden)closeBuddy()});
+document.addEventListener('keydown',e=>{if(e.key==='Escape'){if(!$('#umenu').hidden){$('#umenu').hidden=true;$('#ubtn').setAttribute('aria-expanded','false');$('#ubtn').focus()}else if(!$('#buddy').hidden)closeBuddy()}});
 render();init();
 </script>
 </body>
