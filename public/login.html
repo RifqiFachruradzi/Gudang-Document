@@ -39,6 +39,8 @@ input{font:inherit;color:var(--ink);background:var(--soft);border:1px solid var(
 input:focus-visible,button:focus-visible{outline:3px solid var(--accent);outline-offset:2px}
 .err{background:var(--bad-bg);color:var(--bad);border-radius:8px;padding:10px 12px;font-size:14px;margin:0 0 14px}
 .err[hidden],[hidden]{display:none}
+.pw{position:relative}.pw input{padding-right:76px}
+.pw button{position:absolute;right:6px;top:5px;min-height:36px;font:inherit;font-size:14px;font-weight:600;background:transparent;border:0;color:var(--ink);padding:4px 10px;cursor:pointer}
 .switch{text-align:center;font-size:14px;color:var(--muted);margin:14px 0 0}
 .switch button{font:inherit;background:none;border:0;color:var(--ink);font-weight:600;text-decoration:underline;cursor:pointer;padding:4px}
 </style>
@@ -64,12 +66,12 @@ input:focus-visible,button:focus-visible{outline:3px solid var(--accent);outline
         <input id="name" name="name" autocomplete="name" maxlength="80">
       </div>
       <label for="email">Email</label>
-      <input id="email" name="email" type="email" autocomplete="username" inputmode="email" required>
+      <input id="email" name="email" type="email" autocomplete="username" inputmode="email" autocapitalize="none" autocorrect="off" spellcheck="false" required>
       <label for="password">Kata sandi</label>
-      <input id="password" name="password" type="password" autocomplete="current-password" minlength="8" required>
+      <div class="pw"><input id="password" name="password" type="password" autocomplete="current-password" autocapitalize="none" autocorrect="off" spellcheck="false" minlength="8" required><button type="button" id="show" aria-pressed="false">Lihat</button></div>
       <div id="confirmbox" hidden>
         <label for="confirm">Ulangi kata sandi</label>
-        <input id="confirm" name="confirm" type="password" autocomplete="new-password" minlength="8">
+        <input id="confirm" name="confirm" type="password" autocomplete="new-password" autocapitalize="none" autocorrect="off" spellcheck="false" minlength="8">
       </div>
       <button class="submit" id="submit" type="submit">Masuk</button>
     </form>
@@ -101,14 +103,21 @@ input:focus-visible,button:focus-visible{outline:3px solid var(--accent);outline
   $('#t-register').onclick = () => setMode('register');
   $('#switch').onclick = (e) => { const b = e.target.closest('[data-m]'); if (b) setMode(b.dataset.m); };
 
+  $('#show').onclick = () => {
+    const on = $('#password').type === 'password';
+    $('#password').type = $('#confirm').type = on ? 'text' : 'password';
+    $('#show').textContent = on ? 'Sembunyi' : 'Lihat';
+    $('#show').setAttribute('aria-pressed', String(on));
+  };
+
   function fail(msg) { $('#err').textContent = msg; $('#err').hidden = false; }
 
   $('#f').onsubmit = async (e) => {
     e.preventDefault();
-    const email = $('#email').value.trim(), password = $('#password').value, name = $('#name').value.trim();
+    const email = $('#email').value.trim(), password = $('#password').value.trim(), name = $('#name').value.trim();
     if (mode === 'register') {
       if (!name) return fail('Nama wajib diisi.');
-      if (password !== $('#confirm').value) return fail('Kedua kata sandi tidak sama.');
+      if (password !== $('#confirm').value.trim()) return fail('Kedua kata sandi tidak sama.');
     }
     if (!email) return fail('Email wajib diisi.');
     if (password.length < 8) return fail('Kata sandi minimal 8 karakter.');

@@ -52,7 +52,7 @@ export default async function handler(req, res) {
   try {
     if (action === 'login' || action === 'register') {
       const email = String(body.email || '').trim().toLowerCase();
-      const password = String(body.password || '');
+      const password = String(body.password || '').trim();
       if (!EMAIL_RE.test(email)) return res.status(400).json({ error: 'Format email tidak valid' });
       if (password.length < 8 || password.length > 200) return res.status(400).json({ error: 'Kata sandi minimal 8 karakter' });
       if (await tooManyAttempts(email)) return res.status(429).json({ error: 'Terlalu banyak percobaan. Coba lagi 15 menit lagi.' });
