@@ -2,20 +2,21 @@
 
 import Link from 'next/link';
 import { useEffect } from 'react';
-import { ClipboardList, Layers, RotateCcwClock, ShieldCheck } from 'lucide-react';
+import { ClipboardList, RotateCcwClock, ShieldCheck, TriangleAlert } from 'lucide-react';
 import { useApp } from '@/components/app-provider';
 import { buttonClass, Card, CardHeader, Chip, cn, Empty, keputusanTone } from '@/components/ui';
-import { fmt } from '@/lib/evaluate';
+import { fmt, isOpenPO, normalizePO } from '@/lib/evaluate';
+import { stockRows } from '@/lib/stock-view';
 
 export default function Beranda() {
   const { data, me, can, names, resolveNames } = useApp();
   const grn = data ? Object.values(data.grn).sort((a, b) => b.waktu.localeCompare(a.waktu)) : [];
-  const open = data ? Object.entries(data.pos).filter(([, p]) => p.status === 'Terbuka').sort((a, b) => a[1].tanggal.localeCompare(b[1].tanggal)) : [];
+  const open = data ? Object.entries(data.pos).filter(([, p]) => isOpenPO(p)).sort((a, b) => a[1].tanggal.localeCompare(b[1].tanggal)) : [];
   const held = grn.filter((g) => g.keputusan === 'Ditahan');
+  const adjWait = data ? Object.values(data.opname).filter((a) => a.status === 'Menunggu') : [];
+  const lowStock = data ? stockRows(data).filter((r) => r.menipis) : [];
   const today = new Date().toDateString();
   const todayN = grn.filter((g) => new Date(g.waktu).toDateString() === today).length;
-  const stok = data ? Object.values(data.stok) : [];
-  const units = stok.reduce((a, s) => a + (Number(s.qty) || 0), 0);
   const hour = new Date().getHours();
   const greet = hour < 11 ? 'Selamat pagi' : hour < 15 ? 'Selamat siang' : hour < 18 ? 'Selamat sore' : 'Selamat malam';
   const recent = grn.slice(0, 5);
@@ -23,10 +24,10 @@ export default function Beranda() {
   useEffect(() => { resolveNames(recent.map((g) => g.petugas)); }, [recent, resolveNames]);
 
   const kpis = [
-    { href: '/terima', icon: ClipboardList, k: 'PO menunggu', v: open.length, s: 'kiriman belum diterima' },
-    { href: '/riwayat?f=ditahan', icon: ShieldCheck, k: 'Ditahan', v: held.length, s: held.length ? 'perlu persetujuan supervisor' : 'tidak ada yang tertahan', alert: held.length > 0 },
+    { href: '/terima', icon: ClipboardList, k: 'PO menunggu', v: open.length, s: 'terbuka atau diterima sebagian' },
+    { href: held.length || !adjWait.length ? '/riwayat?f=ditahan' : '/opname', icon: ShieldCheck, k: 'Perlu persetujuan', v: held.length + adjWait.length, s: held.length + adjWait.length ? `${held.length} penerimaan ditahan, ${adjWait.length} penyesuaian stok` : 'tidak ada yang menunggu', alert: held.length + adjWait.length > 0 },
     { href: '/riwayat', icon: RotateCcwClock, k: 'Diterima hari ini', v: todayN, s: `${fmt(grn.length)} penerimaan total` },
-    { href: '/stok', icon: Layers, k: 'Jenis barang', v: stok.length, s: `${fmt(units)} unit di gudang` },
+    { href: '/stok', icon: TriangleAlert, k: 'Stok menipis', v: lowStock.length, s: lowStock.length ? lowStock.slice(0, 2).map((r) => r.nama).join(', ') + (lowStock.length > 2 ? ', …' : '') : 'semua di atas minimum', warn: lowStock.length > 0 },
   ];
 
   return (
@@ -48,15 +49,15 @@ export default function Beranda() {
             href={x.href}
             className={cn(
               'relative block overflow-hidden rounded-xl border bg-panel px-4 py-3.5 shadow-[0_1px_2px_rgba(21,33,43,.05)] transition-colors hover:border-muted',
-              x.alert ? 'border-bad bg-bad-bg pt-5 text-bad' : 'border-line',
+              x.alert ? 'border-bad bg-bad-bg pt-5 text-bad' : x.warn ? 'border-warn bg-warn-bg text-warn' : 'border-line',
             )}
           >
             {x.alert && <div className="hazard absolute inset-x-0 top-0 h-1.5" aria-hidden />}
-            <span className={cn('flex items-center gap-1.5 text-[13px]', !x.alert && 'text-muted')}>
+            <span className={cn('flex items-center gap-1.5 text-[13px]', !x.alert && !x.warn && 'text-muted')}>
               <x.icon className="size-4" strokeWidth={1.8} /> {x.k}
             </span>
             <div className="mt-1 font-display text-4xl font-bold tabular-nums">{data ? fmt(x.v) : '–'}</div>
-            <span className={cn('text-[13px]', !x.alert && 'text-muted')}>{x.s}</span>
+            <span className={cn('line-clamp-1 text-[13px]', !x.alert && !x.warn && 'text-muted')}>{x.s}</span>
           </Link>
         ))}
       </div>
@@ -70,7 +71,7 @@ export default function Beranda() {
                 <li key={id} className="flex items-center justify-between gap-3 py-2.5">
                   <div className="min-w-0">
                     <b>{p.no}</b>
-                    <div className="truncate text-sm text-muted">{p.supplier}, {p.items.length} jenis barang</div>
+                    <div className="truncate text-sm text-muted">{p.supplier} · {normalizePO(p).status === 'Sebagian' ? 'diterima sebagian' : `${p.items.length} jenis barang`}</div>
                   </div>
                   {can('petugas') && <Link href={`/terima/${encodeURIComponent(id)}`} className={buttonClass('secondary', 'sm')}>Terima</Link>}
                 </li>

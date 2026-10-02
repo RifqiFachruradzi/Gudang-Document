@@ -3,24 +3,31 @@
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { useEffect, useRef, useState } from 'react';
-import { ChevronDown, ClipboardList, Layers, LayoutGrid, LogOut, PackageCheck, RotateCcwClock, ShieldCheck, User } from 'lucide-react';
+import { ChevronDown, ClipboardCheck, ClipboardList, Database, Ellipsis, Layers, LayoutGrid, LogOut, PackageCheck, RotateCcwClock, ShieldCheck, Truck, User, X } from 'lucide-react';
 import { ROLE_LABEL, type Role } from '@/lib/types';
 import { useApp } from './app-provider';
 import { cn, Logo } from './ui';
 
-const NAV: { href: string; label: string; short: string; icon: typeof LayoutGrid; role?: Role }[] = [
-  { href: '/', label: 'Beranda', short: 'Beranda', icon: LayoutGrid },
-  { href: '/terima', label: 'Terima barang', short: 'Terima', icon: PackageCheck },
-  { href: '/po', label: 'Purchase order', short: 'PO', icon: ClipboardList },
-  { href: '/stok', label: 'Stok', short: 'Stok', icon: Layers },
-  { href: '/riwayat', label: 'Riwayat', short: 'Riwayat', icon: RotateCcwClock },
-  { href: '/admin', label: 'Admin', short: 'Admin', icon: ShieldCheck, role: 'admin' },
+interface NavItem { href: string; label: string; short: string; icon: typeof LayoutGrid; role?: Role; group: string; mobile?: boolean }
+const NAV: NavItem[] = [
+  { href: '/', label: 'Beranda', short: 'Beranda', icon: LayoutGrid, group: '', mobile: true },
+  { href: '/terima', label: 'Terima barang', short: 'Terima', icon: PackageCheck, group: 'Operasional', mobile: true },
+  { href: '/keluar', label: 'Barang keluar', short: 'Keluar', icon: Truck, group: 'Operasional', mobile: true },
+  { href: '/opname', label: 'Stok opname', short: 'Opname', icon: ClipboardCheck, group: 'Operasional' },
+  { href: '/po', label: 'Purchase order', short: 'PO', icon: ClipboardList, group: 'Data' },
+  { href: '/stok', label: 'Stok', short: 'Stok', icon: Layers, group: 'Data', mobile: true },
+  { href: '/riwayat', label: 'Riwayat penerimaan', short: 'Riwayat', icon: RotateCcwClock, group: 'Data' },
+  { href: '/master', label: 'Master data', short: 'Master', icon: Database, group: 'Data' },
+  { href: '/admin', label: 'Admin', short: 'Admin', icon: ShieldCheck, role: 'admin', group: 'Sistem' },
 ];
 
 const TITLES: [string, string, string][] = [
   ['/terima', 'Terima barang', 'Verifikasi kiriman terhadap PO dan surat jalan'],
-  ['/po', 'Purchase order', 'Daftar PO dan aturan verifikasi'],
-  ['/stok', 'Stok', 'Jumlah barang per lokasi rak'],
+  ['/keluar', 'Barang keluar', 'Pengiriman ke pelanggan, cabang, atau pemakaian internal'],
+  ['/opname', 'Stok opname', 'Hitung fisik dan penyesuaian stok'],
+  ['/po', 'Purchase order', 'Pesanan ke supplier dan progres penerimaannya'],
+  ['/stok', 'Stok', 'Jumlah barang per lokasi rak dan kartu stok'],
+  ['/master', 'Master data', 'Barang dan supplier'],
   ['/riwayat', 'Riwayat penerimaan', 'Bukti terima digital (GRN)'],
   ['/akun', 'Akun saya', 'Profil dan kata sandi'],
   ['/admin', 'Admin', 'Pengguna dan log audit'],
@@ -32,6 +39,12 @@ export function Shell({ children }: { children: React.ReactNode }) {
   const path = usePathname();
   const { me, can } = useApp();
   const nav = NAV.filter((n) => !n.role || can(n.role));
+  const [more, setMore] = useState(false);
+  const bottomCls = (active: boolean) =>
+    cn(
+      'relative flex min-h-14.5 flex-1 flex-col items-center justify-center gap-0.5 text-[11.5px] font-semibold',
+      active ? 'text-ink before:absolute before:inset-x-[22%] before:top-0 before:h-[3px] before:rounded-b before:bg-accent' : 'text-muted',
+    );
   const [title, sub] = (TITLES.find(([p]) => isActive(path, p)) || ['', 'Beranda', 'Ringkasan aktivitas gudang']).slice(1);
 
   return (
@@ -46,22 +59,24 @@ export function Shell({ children }: { children: React.ReactNode }) {
               <span className="text-xs tracking-[.08em] text-side-mute uppercase">Tanpa kertas</span>
             </span>
           </Link>
-          <nav className="flex flex-col gap-0.5">
-            {nav.map((n) => {
+          <nav className="flex flex-col gap-0.5 overflow-y-auto">
+            {nav.map((n, i) => {
               const active = isActive(path, n.href);
               return (
-                <Link
-                  key={n.href}
-                  href={n.href}
-                  aria-current={active ? 'page' : undefined}
-                  className={cn(
-                    'relative flex min-h-11 items-center gap-3 rounded-lg px-3 text-[15px] font-medium transition-colors hover:bg-side-hover hover:text-white',
-                    active && 'bg-side-hover text-white before:absolute before:inset-y-2 before:-left-3 before:w-1 before:rounded-r before:bg-accent',
-                  )}
-                >
-                  <n.icon className={cn('size-5', active && 'text-accent')} strokeWidth={1.8} />
-                  {n.label}
-                </Link>
+                <div key={n.href}>
+                  {n.group && n.group !== nav[i - 1]?.group && <p className="mt-4 mb-1 px-3 text-[11px] font-semibold tracking-[.1em] text-side-mute uppercase">{n.group}</p>}
+                  <Link
+                    href={n.href}
+                    aria-current={active ? 'page' : undefined}
+                    className={cn(
+                      'relative flex min-h-10.5 items-center gap-3 rounded-lg px-3 text-[15px] font-medium transition-colors hover:bg-side-hover hover:text-white',
+                      active && 'bg-side-hover text-white before:absolute before:inset-y-2 before:-left-3 before:w-1 before:rounded-r before:bg-accent',
+                    )}
+                  >
+                    <n.icon className={cn('size-5', active && 'text-accent')} strokeWidth={1.8} />
+                    {n.label}
+                  </Link>
+                </div>
               );
             })}
           </nav>
@@ -84,24 +99,39 @@ export function Shell({ children }: { children: React.ReactNode }) {
       </div>
 
       <nav className="no-print fixed inset-x-0 bottom-0 z-30 flex border-t border-line bg-panel pb-[env(safe-area-inset-bottom)] lg:hidden" aria-label="Menu utama">
-        {nav.map((n) => {
+        {nav.filter((n) => n.mobile).map((n) => {
           const active = isActive(path, n.href);
           return (
-            <Link
-              key={n.href}
-              href={n.href}
-              aria-current={active ? 'page' : undefined}
-              className={cn(
-                'relative flex min-h-14.5 flex-1 flex-col items-center justify-center gap-0.5 text-[11.5px] font-semibold',
-                active ? 'text-ink before:absolute before:inset-x-[22%] before:top-0 before:h-[3px] before:rounded-b before:bg-accent' : 'text-muted',
-              )}
-            >
+            <Link key={n.href} href={n.href} aria-current={active ? 'page' : undefined} className={bottomCls(active)}>
               <n.icon className="size-5.5" strokeWidth={1.8} />
               {n.short}
             </Link>
           );
         })}
+        <button onClick={() => setMore(true)} aria-haspopup="dialog" className={bottomCls(nav.some((n) => !n.mobile && isActive(path, n.href)))}>
+          <Ellipsis className="size-5.5" strokeWidth={1.8} />
+          Lainnya
+        </button>
       </nav>
+      {more && (
+        <div className="fixed inset-0 z-50 lg:hidden" role="dialog" aria-modal="true" aria-label="Menu lainnya">
+          <button className="absolute inset-0 bg-black/40" aria-label="Tutup menu" onClick={() => setMore(false)} />
+          <div className="absolute inset-x-0 bottom-0 rounded-t-2xl border-t border-line bg-panel p-3 pb-[calc(12px+env(safe-area-inset-bottom))] shadow-2xl">
+            <div className="mb-2 flex items-center justify-between px-2">
+              <b className="font-display text-xl">Menu lainnya</b>
+              <button onClick={() => setMore(false)} className="grid size-10 place-items-center rounded-lg hover:bg-soft" aria-label="Tutup"><X className="size-5" /></button>
+            </div>
+            <div className="grid grid-cols-3 gap-2">
+              {nav.filter((n) => !n.mobile).map((n) => (
+                <Link key={n.href} href={n.href} onClick={() => setMore(false)} aria-current={isActive(path, n.href) ? 'page' : undefined} className="flex min-h-20 flex-col items-center justify-center gap-1.5 rounded-xl border border-line px-1 text-center text-[13px] font-semibold aria-[current=page]:border-accent aria-[current=page]:bg-warn-bg">
+                  <n.icon className="size-6" strokeWidth={1.8} />
+                  {n.label}
+                </Link>
+              ))}
+            </div>
+          </div>
+        </div>
+      )}
     </>
   );
 }

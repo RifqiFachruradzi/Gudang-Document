@@ -76,14 +76,14 @@ export default function GRNDetail() {
           <table className="w-full min-w-130 border-collapse">
             <thead>
               <tr className="border-b border-line text-left text-[13px] text-muted">
-                {['Barang', 'PO', 'SJ', 'Fisik', 'Rusak', 'Status'].map((h) => <th key={h} className="px-1.5 py-1.5 font-medium">{h}</th>)}
+                {['Barang', 'Sisa PO', 'SJ', 'Fisik', 'Rusak', 'Status'].map((h) => <th key={h} className="px-1.5 py-1.5 font-medium">{h}</th>)}
               </tr>
             </thead>
             <tbody>
               {g.items.map((r) => (
                 <tr key={r.sku} className="border-b border-line align-top">
                   <td className="px-1.5 py-2"><b>{r.nama}</b>{r.notes.length > 0 && <div className="text-sm">{r.notes.join('. ')}</div>}</td>
-                  {[r.po, r.sj, r.fisik, r.rusak].map((v, i) => (
+                  {[r.sisa ?? r.po, r.sj, r.fisik, r.rusak].map((v, i) => (
                     <td key={i} className="px-1.5 py-2 font-display text-2xl font-semibold tabular-nums">{v == null ? '-' : fmt(v)}</td>
                   ))}
                   <td className="px-1.5 py-2">{STATUS_CHIP[r.status]}</td>

@@ -14,14 +14,23 @@ Aplikasi penerimaan barang berbasis AI: pencocokan PO, surat jalan, dan barang f
 ```
 src/app/login/            Halaman masuk dan daftar akun
 src/app/(app)/            Halaman aplikasi (wajib login)
-  page.tsx                Beranda: ringkasan dan KPI
-  terima/                 Daftar PO dan alur penerimaan per PO
-  po/  stok/  riwayat/    Purchase order, stok, riwayat & detail GRN
+  page.tsx                Beranda: ringkasan, persetujuan, stok menipis
+  terima/                 PO terbuka dan alur penerimaan (pengiriman bertahap)
+  keluar/                 Barang keluar (surat jalan keluar)
+  opname/                 Stok opname dan penyesuaian stok
+  po/                     Purchase order: buat, ubah, batalkan, tutup sisa, hapus
+  stok/                   Stok per rak dan kartu stok per barang
+  riwayat/                Riwayat & detail GRN
+  master/                 Master data barang dan supplier
   akun/  admin/           Ganti kata sandi; kelola pengguna & log audit
 src/app/api/              auth, data, admin, ai (Route Handlers)
 src/components/           Shell (sidebar, header, menu), Gudi, UI dasar
 src/lib/                  Tipe data, aturan pencocokan (dipakai klien & server), klien API & AI
 src/server/core.ts        Redis, sesi, peran, log audit
+src/server/store.ts       Kunci proses, operasi stok atomik, nomor dokumen
+src/server/receiving.ts   Penerimaan & persetujuan GRN
+src/server/purchase.ts    Kelola PO, master barang & supplier
+src/server/stock.ts       Barang keluar, stok opname
 ```
 
 ## Menjalankan di komputer
@@ -55,10 +64,20 @@ npm run build                # cek build produksi
 
 Akun yang mendaftar sendiri berstatus **menunggu** sampai disetujui admin. Semua aturan peran dicek di server.
 
+## Alur gudang
+
+- **Penerimaan bertahap**: setiap PO mencatat jumlah yang sudah diterima per barang. Kiriman yang lebih sedikit dari sisa PO diterima normal; status PO *Terbuka → Diterima sebagian → Diterima*. Penerimaan ditahan bila selisih dengan surat jalan, kelebihan dari sisa PO, atau barang rusak melebihi toleransi, atau ada kode di luar PO.
+- **Kelola PO** (Supervisor/Admin): ubah selama belum ada penerimaan; batalkan (belum ada barang diterima) atau tutup sisa (sudah sebagian) dengan alasan; hapus bila belum ada penerimaan.
+- **Barang keluar**: dokumen GI mengurangi stok; tidak bisa melebihi stok yang ada. Bisa dicetak sebagai surat jalan.
+- **Stok opname / penyesuaian**: hitung fisik atau catat barang rusak/hilang; selisih diterapkan ke stok setelah disetujui Supervisor/Admin.
+- **Master data**: barang (SKU, barcode, satuan, rak, stok minimum) dan supplier. Barang/supplier baru dari PO otomatis masuk; database lama diisi otomatis dari PO dan stok yang ada.
+- **Kartu stok**: riwayat masuk, keluar, dan penyesuaian per barang.
+
 ## Integritas data
 
 - Penerimaan dan persetujuan diproses di server dalam satu langkah; hasil pencocokan dihitung ulang di server dengan aturan yang sama dengan tampilan (`src/lib/evaluate.ts`).
-- Setiap PO hanya bisa diterima sekali (terkunci walau dua petugas menyimpan bersamaan); persetujuan penerimaan yang ditahan juga hanya berlaku sekali.
+- Penerimaan untuk PO yang sama diproses satu per satu (kunci proses di Redis), sehingga sisa PO selalu benar walau dua petugas menyimpan bersamaan; persetujuan penerimaan atau penyesuaian hanya berlaku sekali.
+- Barang keluar mengurangi stok secara atomik; bila salah satu barang tidak cukup, seluruh dokumen dibatalkan sehingga stok tidak pernah minus.
 - Stok ditambah secara atomik di Redis (`HINCRBYFLOAT`), sehingga tidak ada penambahan yang hilang.
 - GRN tidak bisa diubah setelah disimpan, kecuali persetujuan supervisor. Setiap perubahan tercatat di log audit (5.000 entri terakhir).
 - Aplikasi hanya mengunduh ulang data bila ada perubahan (nomor versi); tanda tangan disimpan terpisah dan dimuat saat detail GRN dibuka.

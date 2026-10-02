@@ -1,15 +1,9 @@
 import { audit, body, fail, handle, json, parseHash, redis, requireUser } from '@/server/core';
-import { evaluate, fmt } from '@/lib/evaluate';
-import { APPROVED, atLeast, type EvalRow, type GRN, type Keputusan, type PO, type PublicUser, type ReceiveInput, type Settings, type StockItem } from '@/lib/types';
-
-const COLS = ['pos', 'stok', 'grn', 'config'] as const;
-const KEY = (c: string) => `gudang:${c}`;
-const QTY_KEY = 'gudang:stokqty'; // jumlah stok per SKU, diubah atomik dengan HINCRBYFLOAT
-const TTD_KEY = 'gudang:ttd'; // gambar tanda tangan per GRN, dipisah agar sinkronisasi ringan
-const CLAIM_KEY = 'gudang:poclaim'; // PO → GRN yang menerimanya (cegah penerimaan ganda)
-const APPROVE_KEY = 'gudang:approved'; // GRN ditahan → penyetuju (cegah persetujuan ganda)
-const VER_KEY = 'gudang:ver'; // naik setiap ada perubahan; klien hanya mengunduh ulang bila berubah
-const ID_RE = /^[A-Za-z0-9_\-.~:@+]{1,200}$/;
+import { bump, COLS, getJSON, KEY, putJSON, QTY_KEY, TTD_KEY, VER_KEY } from '@/server/store';
+import { approveGRN, receive } from '@/server/receiving';
+import { closePO, deleteBarang, deletePO, deleteSupplier, saveBarang, savePO, saveSupplier } from '@/server/purchase';
+import { createAdjustment, decideAdjustment, issueGoods } from '@/server/stock';
+import { atLeast, type Barang, type GRN, type PO, type PublicUser, type ReceiveInput, type Settings, type StockItem, type Supplier } from '@/lib/types';
 
 const DEMO: Record<string, Record<string, unknown>> = {
   config: { settings: { toleransi: 2 } },
@@ -22,107 +16,25 @@ const DEMO: Record<string, Record<string, unknown>> = {
       { sku: 'KRD-M', barcode: '8992002000017', nama: 'Kardus ukuran M', qty: 200, satuan: 'pcs' },
       { sku: 'LKB-48', barcode: '8992002000048', nama: 'Lakban bening 48 mm', qty: 50, satuan: 'roll' } ] },
   },
+  barang: {
+    'BRS-PW-5': { sku: 'BRS-PW-5', barcode: '8991001000051', nama: 'Beras Pandan Wangi 5 kg', satuan: 'sak', lokasi: 'A-01', minStok: 10 },
+    'MYK-2L': { sku: 'MYK-2L', barcode: '8991001000204', nama: 'Minyak Goreng 2 liter', satuan: 'pouch', lokasi: 'A-02', minStok: 20 },
+    'GLA-1K': { sku: 'GLA-1K', barcode: '8991001000013', nama: 'Gula Pasir 1 kg', satuan: 'pack', lokasi: 'A-03', minStok: 30 },
+    'KRD-M': { sku: 'KRD-M', barcode: '8992002000017', nama: 'Kardus ukuran M', satuan: 'pcs', lokasi: 'B-01', minStok: 50 },
+    'LKB-48': { sku: 'LKB-48', barcode: '8992002000048', nama: 'Lakban bening 48 mm', satuan: 'roll', lokasi: 'B-02', minStok: 10 },
+  },
+  supplier: {
+    'pt-sumber-pangan-nusantara': { id: 'pt-sumber-pangan-nusantara', nama: 'PT Sumber Pangan Nusantara', kontak: 'Bu Rina', telepon: '021-5550123' },
+    'cv-maju-plastik': { id: 'cv-maju-plastik', nama: 'CV Maju Plastik', kontak: 'Pak Andi', telepon: '021-5550456' },
+  },
 };
-
-async function getJSON<T>(col: string, id: string): Promise<T | null> {
-  const r = await redis<string | null>('HGET', KEY(col), id);
-  return r ? (JSON.parse(r) as T) : null;
-}
-const bump = () => redis<number>('INCR', VER_KEY);
-
-// Tambah stok secara atomik. Data lama yang menyimpan jumlah di JSON dipindah sekali ke hash jumlah.
-async function addStock(rows: EvalRow[], waktu: string) {
-  const metas = parseHash<StockItem>(await redis('HGETALL', KEY('stok')));
-  const used = new Set(Object.values(metas).map((s) => s.lokasi));
-  const nextLokasi = () => {
-    for (const z of ['A', 'B', 'C', 'D']) for (let n = 1; n <= 20; n++) {
-      const l = z + '-' + String(n).padStart(2, '0');
-      if (!used.has(l)) { used.add(l); return l; }
-    }
-    return 'E-01';
-  };
-  const changes: string[] = [];
-  for (const r of rows) {
-    if (r.baik <= 0) continue;
-    const meta = metas[r.sku];
-    await redis('HSETNX', QTY_KEY, r.sku, String(Number(meta?.qty) || 0));
-    const after = Number(await redis('HINCRBYFLOAT', QTY_KEY, r.sku, String(r.baik)));
-    await redis('HSET', KEY('stok'), r.sku, JSON.stringify({ sku: r.sku, nama: r.nama, satuan: r.satuan, lokasi: meta?.lokasi || nextLokasi(), update: waktu }));
-    changes.push(`${r.sku} +${fmt(r.baik)} → ${fmt(after)} ${r.satuan}`);
-  }
-  return changes;
-}
-
-async function receive(b: Partial<ReceiveInput>, me: PublicUser) {
-  const poId = String(b.poId || '');
-  if (!ID_RE.test(poId)) return fail(400, 'PO tidak valid');
-  const po = await getJSON<PO>('pos', poId);
-  if (!po) return fail(404, 'PO tidak ditemukan');
-  if (po.status === 'Diterima' || po.status === 'Ditahan')
-    return fail(409, `PO ${po.no} sudah diterima (${po.grn || 'GRN tersimpan'}). Tidak bisa diterima dua kali.`);
-  if (typeof b.ttd !== 'string' || !b.ttd.startsWith('data:image/') || b.ttd.length > 400 * 1024) return fail(400, 'Tanda tangan pengirim wajib diisi');
-
-  const cfg = await getJSON<Settings>('config', 'settings');
-  const ev = evaluate(po, b, Number(cfg?.toleransi ?? 2));
-  if (ev.rows.every((r) => r.fisik === 0)) return fail(400, 'Scan barang dulu sebelum menyimpan');
-  const wantApprove = !!b.approved && ev.hasil === 'Ditahan';
-  if (wantApprove && !atLeast(me.role, 'supervisor')) return fail(403, 'Hanya Supervisor atau Admin yang bisa menyetujui barang yang ditahan');
-  const keputusan: Keputusan = ev.hasil === 'Ditahan' ? (wantApprove ? APPROVED : 'Ditahan') : ev.hasil;
-
-  const waktu = new Date().toISOString();
-  let id = 'GRN-' + waktu.replace(/[-:T]/g, '').slice(0, 14);
-  // Kunci PO: hanya satu penerimaan yang bisa mengklaimnya, walau dua petugas menyimpan bersamaan.
-  if (!(await redis<number>('HSETNX', CLAIM_KEY, poId, id))) return fail(409, `PO ${po.no} baru saja diterima oleh petugas lain. Muat ulang halaman.`);
-  try {
-    for (let i = 2; await redis<number>('HEXISTS', KEY('grn'), id); i++) id = id.replace(/(-\d+)?$/, '') + '-' + i;
-    await redis('HSET', CLAIM_KEY, poId, id);
-    const clip = (v: unknown, n: number) => String(v || '').slice(0, n);
-    const g: GRN = {
-      no: id, poId, poNo: po.no, supplier: po.supplier, waktu, petugas: me.email, hasil: ev.hasil, keputusan, items: ev.rows,
-      unknown: (b.unknown || []).slice(0, 50).map((x) => clip(x, 60)), sjNo: clip(b.sjNo, 80), pengirim: clip(b.pengirim, 80),
-      catatan: clip(b.catatan, 2000), inspeksi: (Array.isArray(b.inspeksi) ? b.inspeksi : []).slice(0, 10), ttd: true,
-      ...(wantApprove ? { disetujuiOleh: me.email, disetujuiWaktu: waktu } : {}),
-    };
-    await redis('HSET', TTD_KEY, id, b.ttd);
-    await redis('HSET', KEY('grn'), id, JSON.stringify(g));
-    const accepted = keputusan !== 'Ditahan';
-    if (wantApprove) await redis('HSET', APPROVE_KEY, id, me.email);
-    const changes = accepted ? await addStock(ev.rows, waktu) : [];
-    await redis('HSET', KEY('pos'), poId, JSON.stringify({ ...po, status: accepted ? 'Diterima' : 'Ditahan', grn: id }));
-    await bump();
-    await audit(me, 'buat penerimaan', `${id} (${po.no}): ${keputusan}${changes.length ? '; stok ' + changes.join(', ') : ''}`);
-    return json({ ok: true, grn: g });
-  } catch (e) {
-    await redis('HDEL', CLAIM_KEY, poId).catch(() => {});
-    throw e;
-  }
-}
-
-async function approve(idRaw: unknown, me: PublicUser) {
-  if (!atLeast(me.role, 'supervisor')) return fail(403, 'Hanya Supervisor atau Admin yang bisa menyetujui barang yang ditahan');
-  const id = String(idRaw || '');
-  const g = ID_RE.test(id) ? await getJSON<GRN>('grn', id) : null;
-  if (!g) return fail(404, 'Penerimaan tidak ditemukan');
-  if (g.keputusan !== 'Ditahan') return fail(409, 'Penerimaan ini tidak sedang ditahan');
-  // Kunci persetujuan: stok hanya bertambah sekali walau tombol ditekan dua kali atau oleh dua orang.
-  if (!(await redis<number>('HSETNX', APPROVE_KEY, id, me.email))) return fail(409, 'Penerimaan ini sudah disetujui');
-  const waktu = new Date().toISOString();
-  const ng: GRN = { ...g, keputusan: APPROVED, disetujuiOleh: me.email, disetujuiWaktu: waktu };
-  await redis('HSET', KEY('grn'), id, JSON.stringify(ng));
-  const changes = await addStock(g.items, waktu);
-  const po = await getJSON<PO>('pos', g.poId);
-  if (po) await redis('HSET', KEY('pos'), g.poId, JSON.stringify({ ...po, status: 'Diterima', grn: id }));
-  await bump();
-  await audit(me, 'setujui penerimaan', `${id} (${g.poNo})${changes.length ? '; stok ' + changes.join(', ') : ''}`);
-  return json({ ok: true, grn: ng });
-}
 
 export const GET = handle(async (req) => {
   const me = await requireUser(req);
   if (me instanceof Response) return me;
   const q = new URL(req.url).searchParams;
 
-  // Tanda tangan satu GRN, diminta saat detail dibuka.
+  // Tanda tangan satu dokumen (GRN atau barang keluar), diminta saat detail dibuka.
   const ttdId = q.get('ttd');
   if (ttdId) {
     let ttd = await redis<string | null>('HGET', TTD_KEY, ttdId);
@@ -141,9 +53,24 @@ export const GET = handle(async (req) => {
   for (const c of COLS) out[c] = parseHash(await redis('HGETALL', KEY(c)));
   // Isi data contoh hanya sekali, saat database masih kosong dan SEED_DEMO tidak dimatikan.
   if (COLS.every((c) => !Object.keys(out[c]).length) && process.env.SEED_DEMO !== 'false') {
-    for (const c of Object.keys(DEMO)) for (const [id, d] of Object.entries(DEMO[c])) {
-      await redis('HSET', KEY(c), id, JSON.stringify(d));
+    for (const c of Object.keys(DEMO) as (keyof typeof DEMO)[]) for (const [id, d] of Object.entries(DEMO[c])) {
+      await putJSON(c as (typeof COLS)[number], id, d);
       out[c][id] = d;
+    }
+  }
+  // Database lama belum punya master data: isi sekali dari PO dan stok yang sudah ada.
+  if (!Object.keys(out.barang).length && (Object.keys(out.pos).length || Object.keys(out.stok).length)) {
+    const seen: Record<string, Barang> = {};
+    for (const p of Object.values(out.pos as Record<string, PO>)) for (const i of p.items) seen[i.sku] ||= { sku: i.sku, barcode: i.barcode, nama: i.nama, satuan: i.satuan };
+    for (const s of Object.values(out.stok as Record<string, StockItem>)) seen[s.sku] = { ...(seen[s.sku] || { barcode: '' }), sku: s.sku, nama: s.nama, satuan: s.satuan, lokasi: s.lokasi };
+    for (const b of Object.values(seen)) { await redis('HSETNX', KEY('barang'), b.sku, JSON.stringify(b)); out.barang[b.sku] = b; }
+  }
+  if (!Object.keys(out.supplier).length && Object.keys(out.pos).length) {
+    for (const nama of new Set(Object.values(out.pos as Record<string, PO>).map((p) => p.supplier))) {
+      const id = nama.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '').slice(0, 60) || 'supplier';
+      const sp: Supplier = { id, nama };
+      await redis('HSETNX', KEY('supplier'), id, JSON.stringify(sp));
+      out.supplier[id] = sp;
     }
   }
   // Jumlah stok dari hash atomik; data lama tetap memakai jumlah di JSON.
@@ -154,35 +81,45 @@ export const GET = handle(async (req) => {
     if (typeof g.ttd === 'string') {
       await redis('HSETNX', TTD_KEY, id, g.ttd);
       g.ttd = true;
-      await redis('HSET', KEY('grn'), id, JSON.stringify(g));
+      await putJSON('grn', id, g);
     }
   }
   return json({ ...out, ver: ver || Number(await bump()) });
 });
 
+type Action = (b: Record<string, unknown>, me: PublicUser) => Promise<Response>;
+const ACTIONS: Record<string, { min: 'petugas' | 'supervisor'; run: Action }> = {
+  receive: { min: 'petugas', run: (b, me) => receive(b as Partial<ReceiveInput>, me) },
+  approve: { min: 'petugas', run: (b, me) => approveGRN(b.id, me) },
+  po_save: { min: 'petugas', run: savePO },
+  po_close: { min: 'petugas', run: closePO },
+  po_delete: { min: 'petugas', run: deletePO },
+  barang_save: { min: 'petugas', run: saveBarang },
+  barang_delete: { min: 'petugas', run: deleteBarang },
+  supplier_save: { min: 'petugas', run: saveSupplier },
+  supplier_delete: { min: 'petugas', run: deleteSupplier },
+  issue: { min: 'petugas', run: issueGoods },
+  adjust_create: { min: 'petugas', run: createAdjustment },
+  adjust_decide: { min: 'petugas', run: decideAdjustment },
+  settings: {
+    min: 'supervisor',
+    run: async (b, me) => {
+      const tol = Math.max(0, Math.min(50, Number(b.toleransi) || 0));
+      const prev = await getJSON<Settings>('config', 'settings');
+      await putJSON('config', 'settings', { ...(prev || {}), toleransi: tol });
+      await bump();
+      await audit(me, 'ubah pengaturan', `toleransi ${prev?.toleransi ?? 2}% → ${tol}%`);
+      return json({ ok: true });
+    },
+  },
+};
+
 export const POST = handle(async (req) => {
   const me = await requireUser(req);
   if (me instanceof Response) return me;
   const b = await body<Record<string, unknown>>(req);
-
-  if (b.action === 'receive' || b.action === 'approve') {
-    if (!atLeast(me.role, 'petugas')) return fail(403, 'Akun Viewer hanya bisa melihat data');
-    return b.action === 'receive' ? receive(b as Partial<ReceiveInput>, me) : approve(b.id, me);
-  }
-
-  const col = String(b.col || '');
-  const id = String(b.id || '');
-  const data = b.data;
-  if (col !== 'pos' && col !== 'config') return fail(400, 'Penerimaan dan stok hanya bisa diubah lewat proses penerimaan');
-  if (!ID_RE.test(id) || !data || typeof data !== 'object' || Array.isArray(data)) return fail(400, 'Data tidak valid');
-  if (!atLeast(me.role, 'supervisor'))
-    return fail(403, col === 'config' ? 'Hanya Supervisor atau Admin yang bisa mengubah aturan verifikasi' : 'Hanya Supervisor atau Admin yang bisa membuat atau mengubah PO');
-  const prev = await getJSON<PO>(col, id);
-  const s = JSON.stringify(data);
-  if (s.length > 256 * 1024) return fail(400, 'Data terlalu besar');
-  await redis('HSET', KEY(col), id, s);
-  await bump();
-  const detail = col === 'pos' ? `${id}: ${prev ? 'status ' + (prev.status || '-') + ' → ' + ((data as PO).status || '-') : 'dibuat'}` : `${id}: ${s.slice(0, 120)}`;
-  await audit(me, `${prev ? 'ubah' : 'buat'} ${col === 'pos' ? 'PO' : 'pengaturan'}`, detail);
-  return json({ ok: true, data });
+  const a = ACTIONS[String(b.action || '')];
+  if (!a) return fail(400, 'Aksi tidak dikenal');
+  if (!atLeast(me.role, a.min)) return fail(403, a.min === 'petugas' ? 'Akun Viewer hanya bisa melihat data' : 'Hanya Supervisor atau Admin yang bisa melakukan ini');
+  return a.run(b, me);
 });

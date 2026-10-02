@@ -10,7 +10,7 @@ import { SupplierRisk } from '@/components/supplier-risk';
 import { Button, buttonClass, Card, Chip, cn, Input, Label, Note, Stamp, STATUS_CHIP, Textarea } from '@/components/ui';
 import { aiErrorMessage, IMAGE_TYPES, sampleJSON } from '@/lib/ai';
 import { errMsg } from '@/lib/client';
-import { evaluate, fmt } from '@/lib/evaluate';
+import { evaluate, fmt, isOpenPO, normalizePO } from '@/lib/evaluate';
 import { ROLE_LABEL, type Inspection } from '@/lib/types';
 
 interface AiSJ {
@@ -56,13 +56,14 @@ export default function TerimaPO() {
 
   if (!data) return <p className="text-muted">Memuat data gudang…</p>;
   if (!po || !ev) return <Card><p className="m-0">PO tidak ditemukan. <Link href="/terima" className="underline">Kembali ke daftar PO</Link></p></Card>;
-  if (po.status !== 'Terbuka' && busy !== 'save') {
+  if (!isOpenPO(po) && busy !== 'save') {
+    const st = normalizePO(po).status;
     return (
       <Card>
-        <h2 className="mb-1 text-2xl font-semibold">{po.no} sudah diterima</h2>
-        <p className="mb-3 text-muted">Setiap PO hanya bisa diterima sekali{po.status === 'Ditahan' ? '. Penerimaannya sedang ditahan dan menunggu persetujuan supervisor.' : '.'}</p>
+        <h2 className="mb-1 text-2xl font-semibold">{po.no} {st === 'Diterima' ? 'sudah diterima lengkap' : st === 'Ditutup' ? 'sudah ditutup' : 'dibatalkan'}</h2>
+        <p className="mb-3 text-muted">PO ini tidak bisa menerima kiriman lagi.</p>
         <div className="flex flex-wrap gap-2">
-          {po.grn && <Link href={`/riwayat/${encodeURIComponent(po.grn)}`} className={buttonClass('primary')}>Lihat bukti penerimaan</Link>}
+          <Link href={`/po/${encodeURIComponent(poId)}`} className={buttonClass('primary')}>Lihat PO</Link>
           <Link href="/terima" className={buttonClass()}>Daftar PO</Link>
         </div>
       </Card>
@@ -141,9 +142,10 @@ Balas HANYA dengan JSON: {"kondisi":"baik"|"rusak"|"ragu","temuan":[string],"sar
 
   const tone = ev.hasil === 'Diterima' ? 'ok' : ev.hasil === 'Ditahan' ? 'bad' : 'warn';
   const stampSub =
-    ev.hasil === 'Diterima' ? 'Semua barang cocok dengan PO dan surat jalan.'
-    : ev.hasil === 'Ditahan' ? `Ada selisih di atas toleransi ${tol}%, barang rusak, atau barang belum discan. Perlu persetujuan supervisor.`
-    : `Ada selisih kecil dalam toleransi ${tol}%. Barang bisa diterima dengan catatan.`;
+    (ev.hasil === 'Diterima' ? 'Barang cocok dengan surat jalan dan sisa PO.'
+    : ev.hasil === 'Ditahan' ? `Ada selisih di atas toleransi ${tol}%, barang rusak, kelebihan dari sisa PO, kode di luar PO, atau barang di surat jalan belum discan. Perlu persetujuan supervisor.`
+    : `Ada selisih kecil dalam toleransi ${tol}%. Barang bisa diterima dengan catatan.`) +
+    (ev.lengkap ? ' PO akan selesai setelah kiriman ini.' : ' Kiriman ini sebagian; PO tetap terbuka untuk sisanya.');
   const numField = (v: number | '' | undefined, set: (n: number | '') => void, label: string, allowEmpty = false) => (
     <Input
       type="number"
@@ -257,7 +259,7 @@ Balas HANYA dengan JSON: {"kondisi":"baik"|"rusak"|"ragu","temuan":[string],"sar
               <thead>
                 <tr className="border-b border-line text-left text-[13px] text-muted">
                   <th className="px-1.5 py-1.5 font-medium">Barang</th>
-                  <th className="px-1.5 py-1.5 font-medium">PO</th>
+                  <th className="px-1.5 py-1.5 font-medium">Sisa PO</th>
                   <th className="px-1.5 py-1.5 font-medium">Surat jalan</th>
                   <th className="px-1.5 py-1.5 font-medium">Fisik</th>
                   <th className="px-1.5 py-1.5 font-medium">Rusak</th>
@@ -272,7 +274,10 @@ Balas HANYA dengan JSON: {"kondisi":"baik"|"rusak"|"ragu","temuan":[string],"sar
                       <div className="text-sm text-muted">{r.sku}, {r.satuan}</div>
                       {r.notes.length > 0 && <div className="text-sm">{r.notes.join('. ')}</div>}
                     </td>
-                    <td className="px-1.5 py-2 font-display text-2xl font-semibold tabular-nums">{fmt(r.po)}</td>
+                    <td className="px-1.5 py-2">
+                      <div className="font-display text-2xl font-semibold tabular-nums">{fmt(r.sisa ?? r.po)}</div>
+                      {r.sisa !== r.po && <div className="text-xs text-muted">dari {fmt(r.po)}</div>}
+                    </td>
                     <td className="px-1.5 py-2">{numField(sj[r.sku], (n) => { setSj((s) => ({ ...s, [r.sku]: n })); setLast(null); }, `Jumlah surat jalan ${r.nama}`, true)}</td>
                     <td className="px-1.5 py-2">{numField(fisik[r.sku] ?? 0, (n) => { setFisik((s) => ({ ...s, [r.sku]: Number(n) })); setLast(null); }, `Jumlah fisik ${r.nama}`)}</td>
                     <td className="px-1.5 py-2">{numField(rusak[r.sku] ?? 0, (n) => { setRusak((s) => ({ ...s, [r.sku]: Number(n) })); setLast(null); }, `Jumlah rusak ${r.nama}`)}</td>

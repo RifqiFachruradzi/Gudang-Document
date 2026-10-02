@@ -64,7 +64,8 @@ export const STATUS_CHIP: Record<RowStatus, React.ReactNode> = {
   sesuai: <Chip tone="ok">Sesuai</Chip>,
   catatan: <Chip tone="warn">Dalam toleransi</Chip>,
   tahan: <Chip tone="bad">Ditahan</Chip>,
-  belum: <Chip>Belum discan</Chip>,
+  belum: <Chip tone="bad">Belum discan</Chip>,
+  kosong: <Chip>Tidak dikirim</Chip>,
 };
 
 // Cap keputusan penerimaan. Status Ditahan diberi strip peringatan seperti rambu di gudang.

@@ -3,7 +3,7 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { api, cachedUser, clearSession, errMsg, getToken } from '@/lib/client';
-import { atLeast, type GRN, type PO, type PublicUser, type ReceiveInput, type Role, type Snapshot } from '@/lib/types';
+import { atLeast, type GRN, type PublicUser, type ReceiveInput, type Role, type Snapshot } from '@/lib/types';
 
 interface AppState {
   me: PublicUser;
@@ -13,8 +13,8 @@ interface AppState {
   names: Record<string, string>;
   resolveNames: (ids: (string | undefined)[]) => void;
   refresh: () => Promise<void>;
-  savePO: (id: string, po: PO) => Promise<void>;
-  saveTolerance: (v: number) => Promise<void>;
+  /** Jalankan aksi di server (lihat ACTIONS di /api/data), lalu sinkronkan data. */
+  act: <T = Record<string, unknown>>(action: string, payload?: Record<string, unknown>) => Promise<T>;
   receive: (input: ReceiveInput) => Promise<GRN>;
   approve: (id: string) => Promise<GRN>;
   signature: (id: string) => Promise<string | null>;
@@ -108,9 +108,10 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
 
   const value = useMemo<AppState | null>(() => {
     if (!me) return null;
-    const write = async (col: 'pos' | 'config', id: string, d: unknown) => {
-      await api('/api/data', { json: { col, id, data: d } });
+    const act = async <T,>(action: string, payload: Record<string, unknown> = {}) => {
+      const r = await api<T>('/api/data', { json: { action, ...payload } });
       await refresh();
+      return r;
     };
     return {
       me,
@@ -120,18 +121,9 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       names,
       resolveNames,
       refresh,
-      savePO: (id, po) => write('pos', id, po),
-      saveTolerance: (v) => write('config', 'settings', { ...(data?.config.settings || {}), toleransi: v }),
-      receive: async (input) => {
-        const r = await api<{ grn: GRN }>('/api/data', { json: { action: 'receive', ...input } });
-        await refresh();
-        return r.grn;
-      },
-      approve: async (id) => {
-        const r = await api<{ grn: GRN }>('/api/data', { json: { action: 'approve', id } });
-        await refresh();
-        return r.grn;
-      },
+      act,
+      receive: async (input) => (await act<{ grn: GRN }>('receive', { ...input })).grn,
+      approve: async (id) => (await act<{ grn: GRN }>('approve', { id })).grn,
       signature: (id) => api<{ ttd: string | null }>('/api/data?ttd=' + encodeURIComponent(id)).then((r) => r.ttd),
       logout: async () => {
         try { await api('/api/auth', { json: { action: 'logout' } }); } catch { /* tetap keluar */ }

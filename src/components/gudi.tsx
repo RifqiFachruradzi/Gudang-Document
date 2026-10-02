@@ -5,7 +5,8 @@ import { usePathname, useRouter } from 'next/navigation';
 import { ImagePlus, Send, Square, X } from 'lucide-react';
 import { sample, IMAGE_TYPES, MAX_IMAGE_BYTES, type AiTool } from '@/lib/ai';
 import { ApiError } from '@/lib/client';
-import { fmt } from '@/lib/evaluate';
+import { fmt, normalizePO } from '@/lib/evaluate';
+import { stockRows } from '@/lib/stock-view';
 import { useApp } from './app-provider';
 import { cn, Mascot } from './ui';
 
@@ -13,8 +14,8 @@ interface ChartData { judul: string; satuan: string; data: { label: string; nila
 interface ChatMsg { role: 'user' | 'assistant'; content: string; img?: string; charts?: ChartData[] }
 
 const SUGG = ['Cara pakai aplikasi ini gimana?', 'Ringkas kondisi gudang hari ini', 'Grafik stok per barang', 'Supplier mana yang paling sering bermasalah?'];
-const GUIDE = `Menu "Beranda": ringkasan PO menunggu, penerimaan ditahan, dan penerimaan terakhir. Menu "Terima barang": pilih PO yang menunggu, lalu (1) foto surat jalan atau tempel teksnya supaya AI mengisi jumlah surat jalan, (2) scan barcode/SKU barang fisik lalu Enter (kolom kecil di kanan = jumlah per scan, untuk karton), opsional foto kondisi barang untuk dicek AI, (3) lihat tabel pencocokan PO vs surat jalan vs fisik vs rusak dan keputusan otomatis (Diterima, Diterima dengan catatan, Ditahan), (4) tanda tangan pengirim lalu Simpan penerimaan. Petugas yang menyimpan penerimaan dengan selisih besar membuatnya Ditahan; Supervisor/Admin menyetujuinya dari menu Riwayat. Setiap PO hanya bisa diterima sekali. Setelah diterima, bukti terima digital (GRN) masuk Riwayat dan stok bertambah otomatis. Menu "PO": atur toleransi selisih (%) dan buat PO baru (Supervisor/Admin). Menu "Stok": stok real-time dan lokasi rak, bisa dicari dan diunduh CSV. Menu "Riwayat": daftar GRN, filter Ditahan, detail, cetak/PDF, unduh CSV. Menu "Admin": setujui akun baru, ubah peran, log audit. Peran: Viewer (lihat saja), Petugas, Supervisor, Admin.`;
-const ROUTES: Record<string, string> = { beranda: '/', terima: '/terima', po: '/po', stok: '/stok', riwayat: '/riwayat' };
+const GUIDE = `Menu "Beranda": ringkasan PO menunggu, hal yang perlu persetujuan, penerimaan hari ini, dan stok menipis. Menu "Terima barang": pilih PO yang masih terbuka, lalu (1) foto surat jalan atau tempel teksnya supaya AI mengisi jumlah surat jalan, (2) scan barcode/SKU barang fisik lalu Enter (kolom kecil = jumlah per scan, untuk karton), opsional foto kondisi barang untuk dicek AI, (3) lihat tabel: sisa PO vs surat jalan vs fisik vs rusak dan keputusan otomatis (Diterima, Diterima dengan catatan, Ditahan), (4) tanda tangan pengirim lalu Simpan. Pengiriman bertahap didukung: kiriman yang lebih sedikit dari sisa PO diterima normal dan PO tetap terbuka (status "Diterima sebagian") sampai lengkap. Ditahan bila selisih dengan surat jalan, kelebihan dari sisa PO, atau barang rusak melebihi toleransi, atau ada kode di luar PO; Supervisor/Admin menyetujuinya dari menu Riwayat. Menu "Barang keluar": catat pengiriman ke pelanggan/cabang/pemakaian internal, scan atau pilih barang, stok langsung berkurang dan tidak bisa minus; bisa dicetak sebagai surat jalan. Menu "Stok opname": hitung fisik atau catat barang rusak/hilang; selisih mengubah stok setelah disetujui Supervisor/Admin. Menu "Purchase order": buat, ubah (sebelum ada penerimaan), batalkan, tutup sisa, atau hapus PO (Supervisor/Admin), lihat progres penerimaan per PO, atur toleransi selisih. Menu "Stok": stok real-time per rak, filter stok menipis, ketuk barang untuk kartu stok (riwayat masuk/keluar/penyesuaian). Menu "Riwayat penerimaan": daftar GRN, filter Ditahan, detail, cetak/PDF, CSV. Menu "Master data": barang (SKU, barcode, satuan, rak, stok minimum) dan supplier; barang/supplier baru dari PO otomatis masuk. Menu "Admin": setujui akun baru, ubah peran, log audit. Peran: Viewer (lihat saja), Petugas, Supervisor, Admin.`;
+const ROUTES: Record<string, string> = { beranda: '/', terima: '/terima', keluar: '/keluar', opname: '/opname', po: '/po', stok: '/stok', riwayat: '/riwayat', master: '/master' };
 
 // Format sederhana untuk jawaban AI: paragraf, daftar, dan teks tebal.
 function Markdown({ text }: { text: string }) {
@@ -86,8 +87,11 @@ export function Gudi() {
       hari_ini: new Date().toLocaleDateString('id-ID', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' }),
       toleransi_persen: tol,
       layar: { halaman: path, ...screen },
-      po: Object.values(d.pos).map((p) => ({ no: p.no, supplier: p.supplier, tanggal: p.tanggal, status: p.status, barang: p.items.map((i) => `${i.nama} (${i.sku}) ${i.qty} ${i.satuan}`) })),
-      stok: Object.values(d.stok).map((s) => ({ sku: s.sku, nama: s.nama, qty: s.qty, satuan: s.satuan, lokasi: s.lokasi, diperbarui: s.update })),
+      po: Object.values(d.pos).map(normalizePO).map((p) => ({ no: p.no, supplier: p.supplier, tanggal: p.tanggal, status: p.status, barang: p.items.map((i) => `${i.nama} (${i.sku}) dipesan ${i.qty}, diterima ${p.diterima[i.sku] || 0} ${i.satuan}`) })),
+      stok: stockRows(d).map((s) => ({ sku: s.sku, nama: s.nama, qty: s.qty, satuan: s.satuan, lokasi: s.lokasi, stok_minimum: s.minStok, menipis: s.menipis, diperbarui: s.update })),
+      supplier: Object.values(d.supplier).map((s) => ({ nama: s.nama, kontak: s.kontak, telepon: s.telepon })),
+      barang_keluar: Object.values(d.keluar).sort((a, b) => b.waktu.localeCompare(a.waktu)).slice(0, 30).map((k) => ({ no: k.no, waktu: k.waktu, tujuan: k.tujuan, barang: k.items.map((i) => `${i.nama} ${i.qty} ${i.satuan}`) })),
+      penyesuaian_stok: Object.values(d.opname).sort((a, b) => b.waktu.localeCompare(a.waktu)).slice(0, 20).map((a) => ({ no: a.no, waktu: a.waktu, jenis: a.jenis, status: a.status, selisih: a.items.map((i) => `${i.nama} ${i.selisih}`) })),
       penerimaan_grn: Object.values(d.grn)
         .sort((a, b) => b.waktu.localeCompare(a.waktu))
         .slice(0, 40)
@@ -135,7 +139,7 @@ PESAN PENGGUNA: ${text}`;
       },
       {
         name: 'buka_menu',
-        description: 'Membuka menu aplikasi untuk pengguna: beranda, terima, po, stok, atau riwayat. Mengembalikan "ok".',
+        description: 'Membuka menu aplikasi untuk pengguna: beranda, terima, keluar, opname, po, stok, riwayat, atau master. Mengembalikan "ok".',
         inputSchema: { type: 'object', properties: { menu: { type: 'string', enum: Object.keys(ROUTES) } }, required: ['menu'] },
         execute(inp) {
           const r = ROUTES[String(inp.menu)];

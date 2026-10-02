@@ -21,7 +21,8 @@ export interface POItem {
   satuan: string;
 }
 
-export type POStatus = 'Terbuka' | 'Ditahan' | 'Diterima';
+// 'Ditahan' hanya ada di data lama (sebelum pengiriman bertahap); dinormalkan oleh normalizePO.
+export type POStatus = 'Terbuka' | 'Sebagian' | 'Diterima' | 'Ditutup' | 'Dibatalkan' | 'Ditahan';
 
 export interface PO {
   no: string;
@@ -29,7 +30,79 @@ export interface PO {
   tanggal: string;
   status: POStatus;
   items: POItem[];
+  /** Jumlah barang baik yang sudah diterima per SKU (dari semua GRN yang diterima). */
+  diterima?: Record<string, number>;
+  /** Semua GRN untuk PO ini, termasuk yang ditahan. */
+  grns?: string[];
+  /** GRN terakhir (data lama memakai satu GRN per PO). */
   grn?: string;
+  catatan?: string;
+  dibuatOleh?: string;
+  ditutupOleh?: string;
+  ditutupWaktu?: string;
+  alasanTutup?: string;
+}
+
+export interface Barang {
+  sku: string;
+  barcode: string;
+  nama: string;
+  satuan: string;
+  lokasi?: string;
+  minStok?: number;
+}
+
+export interface Supplier {
+  id: string;
+  nama: string;
+  kontak?: string;
+  telepon?: string;
+  alamat?: string;
+}
+
+export interface IssueItem {
+  sku: string;
+  nama: string;
+  satuan: string;
+  qty: number;
+}
+
+/** Barang keluar (Goods Issue). */
+export interface GoodsIssue {
+  no: string;
+  waktu: string;
+  petugas: string;
+  tujuan: string;
+  referensi: string;
+  catatan: string;
+  items: IssueItem[];
+  ttd: boolean;
+}
+
+export const JENIS_PENYESUAIAN = ['Stok opname', 'Barang rusak', 'Barang hilang', 'Koreksi input'] as const;
+export type JenisPenyesuaian = (typeof JENIS_PENYESUAIAN)[number];
+
+export interface AdjustmentItem {
+  sku: string;
+  nama: string;
+  satuan: string;
+  sistem: number;
+  fisik: number;
+  selisih: number;
+}
+
+/** Stok opname / penyesuaian stok. Selisih baru diterapkan ke stok setelah disetujui. */
+export interface Adjustment {
+  no: string;
+  waktu: string;
+  petugas: string;
+  jenis: JenisPenyesuaian;
+  catatan: string;
+  items: AdjustmentItem[];
+  status: 'Menunggu' | 'Disetujui' | 'Ditolak';
+  diputusOleh?: string;
+  diputusWaktu?: string;
+  alasanTolak?: string;
 }
 
 export interface StockItem {
@@ -41,7 +114,7 @@ export interface StockItem {
   update?: string;
 }
 
-export type RowStatus = 'sesuai' | 'catatan' | 'tahan' | 'belum';
+export type RowStatus = 'sesuai' | 'catatan' | 'tahan' | 'belum' | 'kosong';
 export type Hasil = 'Diterima' | 'Diterima dengan catatan' | 'Ditahan';
 export type Keputusan = Hasil | 'Diterima, disetujui supervisor';
 export const APPROVED: Keputusan = 'Diterima, disetujui supervisor';
@@ -51,6 +124,8 @@ export interface EvalRow {
   nama: string;
   satuan: string;
   po: number;
+  /** Sisa PO sebelum kiriman ini (data lama tidak punya). */
+  sisa?: number;
   sj: number | null;
   fisik: number;
   rusak: number;
@@ -94,6 +169,10 @@ export interface Snapshot {
   stok: Record<string, StockItem>;
   grn: Record<string, GRN>;
   config: { settings?: Settings };
+  barang: Record<string, Barang>;
+  supplier: Record<string, Supplier>;
+  keluar: Record<string, GoodsIssue>;
+  opname: Record<string, Adjustment>;
   ver: number;
 }
 
