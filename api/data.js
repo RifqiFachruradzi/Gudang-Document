@@ -1,4 +1,4 @@
-import { checkAuth, redis } from '../lib/common.js';
+import { requireUser, redis } from '../lib/common.js';
 
 const COLS = ['pos', 'stok', 'grn', 'config'];
 const KEY = (c) => `gudang:${c}`;
@@ -26,7 +26,7 @@ function parseHash(arr) {
 }
 
 export default async function handler(req, res) {
-  if (!checkAuth(req, res)) return;
+  if (!(await requireUser(req, res))) return;
   try {
     if (req.method === 'GET') {
       const out = {};

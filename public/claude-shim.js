@@ -3,20 +3,24 @@
 (function () {
   if (window.claude && window.claude.use) return;
 
-  const PW_KEY = 'gudang-ai-password';
-  function getPw() { try { return localStorage.getItem(PW_KEY) || ''; } catch (e) { return ''; } }
-  function setPw(v) { try { localStorage.setItem(PW_KEY, v); } catch (e) {} }
+  // Sesi login: token dari /login.html. Tanpa token, arahkan ke halaman masuk.
+  const TOKEN_KEY = 'gudang-ai-token', USER_KEY = 'gudang-ai-user';
+  function getToken() { try { return localStorage.getItem(TOKEN_KEY) || ''; } catch (e) { return ''; } }
+  function getMe() { try { return JSON.parse(localStorage.getItem(USER_KEY) || 'null'); } catch (e) { return null; } }
+  function toLogin() {
+    try { localStorage.removeItem(TOKEN_KEY); localStorage.removeItem(USER_KEY); } catch (e) {}
+    location.replace('/login.html');
+  }
+  if (!getToken()) { toLogin(); return; }
 
-  async function api(path, opts = {}, retry = true) {
+  async function api(path, opts = {}) {
     const res = await fetch(path, {
       ...opts,
-      headers: { 'Content-Type': 'application/json', 'x-app-password': getPw(), ...(opts.headers || {}) },
+      headers: { 'Content-Type': 'application/json', Authorization: 'Bearer ' + getToken(), ...(opts.headers || {}) },
     });
-    if (res.status === 401 && retry) {
-      const pw = window.prompt('Masukkan kata sandi aplikasi gudang:');
-      if (pw == null) throw { code: 'not_granted', message: 'Kata sandi diperlukan' };
-      setPw(pw);
-      return api(path, opts, true);
+    if (res.status === 401) {
+      toLogin();
+      throw { code: 'not_granted', message: 'Sesi berakhir, silakan masuk lagi' };
     }
     if (!res.ok) {
       let msg = '';
@@ -28,6 +32,19 @@
     }
     return res.json();
   }
+
+  async function logout() {
+    try { await api('/api/auth', { method: 'POST', body: JSON.stringify({ action: 'logout' }) }); } catch (e) {}
+    toLogin();
+  }
+
+  // ---------- user ----------
+  const user = {
+    async id() { return (getMe() || {}).email || null; },
+    async me() { return { name: (getMe() || {}).name || '', email: (getMe() || {}).email || '' }; },
+    async profiles(ids) { return api('/api/auth', { method: 'POST', body: JSON.stringify({ action: 'profiles', ids }) }); },
+    logout,
+  };
 
   // ---------- db ----------
   const listeners = {};
@@ -135,11 +152,13 @@
     return { images: { maxCount: 3, maxInputBytes: 20 * 1024 * 1024, mediaTypes: ['image/jpeg', 'image/png', 'image/webp'] }, tools: { maxTools: 10 } };
   };
 
+  window.gudangLogout = logout;
   window.claude = {
     use(name) {
       if (name === 'db') return Promise.resolve(db);
       if (name === 'sample') return Promise.resolve(sample);
-      return Promise.resolve(null); // 'user' tidak tersedia di versi mandiri
+      if (name === 'user') return Promise.resolve(user);
+      return Promise.resolve(null);
     },
   };
 })();

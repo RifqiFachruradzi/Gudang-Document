@@ -1,0 +1,136 @@
+<!doctype html>
+<html lang="id">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Masuk: Gudang tanpa kertas</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Barlow:wght@400;500;600&family=Barlow+Condensed:wght@500;600;700&display=swap" rel="stylesheet">
+<style>
+:root{
+  --bg:#E8ECEF;--panel:#FFFFFF;--ink:#15212B;--muted:#5A6873;--line:#C9D1D7;--soft:#F3F5F7;
+  --accent:#F2B705;--accent-ink:#2A2000;--bad:#B3261E;--bad-bg:#FBE3E1;
+  --body:"Barlow",system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;
+  --cond:"Barlow Condensed","Arial Narrow",system-ui,sans-serif;
+  box-sizing:border-box;
+}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){
+  --bg:#0F171D;--panel:#18232B;--ink:#E6ECF0;--muted:#93A3AE;--line:#2C3A44;--soft:#1E2A33;--bad:#FF8A80;--bad-bg:#3E1A18;}}
+:root[data-theme="dark"]{
+  --bg:#0F171D;--panel:#18232B;--ink:#E6ECF0;--muted:#93A3AE;--line:#2C3A44;--soft:#1E2A33;--bad:#FF8A80;--bad-bg:#3E1A18;}
+*,*::before,*::after{box-sizing:inherit}
+body{margin:0;min-height:100vh;background:var(--bg);color:var(--ink);font-family:var(--body);font-size:16px;line-height:1.5;
+  padding:env(safe-area-inset-top,0px) 0 env(safe-area-inset-bottom,0px)}
+.stripe{height:10px;background:repeating-linear-gradient(-45deg,var(--accent) 0 14px,#15212B 14px 28px)}
+main{max-width:420px;margin:0 auto;padding:28px 16px 40px}
+.brand{display:flex;align-items:center;gap:12px;margin:0 0 6px}
+.brand svg{width:56px;height:56px;flex:none}
+h1{font-family:var(--cond);font-weight:700;font-size:32px;line-height:1;margin:0}
+.lead{color:var(--muted);margin:0 0 22px}
+.card{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:18px}
+.tabs{display:flex;gap:6px;background:var(--soft);border:1px solid var(--line);border-radius:10px;padding:4px;margin:0 0 16px}
+.tabs button{flex:1;border:0;background:transparent;color:var(--muted);font-family:var(--cond);font-size:19px;font-weight:600;border-radius:7px;min-height:42px;cursor:pointer}
+.tabs button[aria-selected="true"]{background:var(--panel);color:var(--ink);box-shadow:0 1px 3px rgba(0,0,0,.12)}
+label{display:block;font-size:14px;color:var(--muted);margin:0 0 4px}
+input{font:inherit;color:var(--ink);background:var(--soft);border:1px solid var(--line);border-radius:8px;padding:10px 12px;min-height:46px;width:100%;margin:0 0 14px}
+.submit{font:inherit;font-weight:600;width:100%;min-height:48px;border-radius:8px;border:1px solid var(--accent);background:var(--accent);color:var(--accent-ink);cursor:pointer;margin-top:4px}
+.submit:disabled{opacity:.6;cursor:wait}
+input:focus-visible,button:focus-visible{outline:3px solid var(--accent);outline-offset:2px}
+.err{background:var(--bad-bg);color:var(--bad);border-radius:8px;padding:10px 12px;font-size:14px;margin:0 0 14px}
+.err[hidden],[hidden]{display:none}
+.switch{text-align:center;font-size:14px;color:var(--muted);margin:14px 0 0}
+.switch button{font:inherit;background:none;border:0;color:var(--ink);font-weight:600;text-decoration:underline;cursor:pointer;padding:4px}
+</style>
+</head>
+<body>
+<div class="stripe" aria-hidden="true"></div>
+<main>
+  <div class="brand">
+    <svg viewBox="0 0 64 64" aria-hidden="true"><line x1="32" y1="6" x2="32" y2="14" stroke="#15212B" stroke-width="2.5"/><circle cx="32" cy="6" r="3.5" fill="#F2B705" stroke="#15212B" stroke-width="2"/><path d="M10 22 L32 14 L54 22 L54 50 L32 58 L10 50 Z" fill="#C8955A" stroke="#15212B" stroke-width="2.5" stroke-linejoin="round"/><path d="M10 22 L32 30 L54 22 M32 30 L32 58" fill="none" stroke="#15212B" stroke-width="2.5" stroke-linejoin="round"/></svg>
+    <h1>Gudang tanpa kertas</h1>
+  </div>
+  <p class="lead">Penerimaan barang dengan AI. Masuk untuk melanjutkan.</p>
+
+  <div class="card">
+    <div class="tabs" role="tablist">
+      <button role="tab" id="t-login" aria-selected="true" aria-controls="f">Masuk</button>
+      <button role="tab" id="t-register" aria-selected="false" aria-controls="f">Daftar</button>
+    </div>
+    <form id="f" novalidate>
+      <p class="err" id="err" role="alert" hidden></p>
+      <div id="namebox" hidden>
+        <label for="name">Nama lengkap</label>
+        <input id="name" name="name" autocomplete="name" maxlength="80">
+      </div>
+      <label for="email">Email</label>
+      <input id="email" name="email" type="email" autocomplete="username" inputmode="email" required>
+      <label for="password">Kata sandi</label>
+      <input id="password" name="password" type="password" autocomplete="current-password" minlength="8" required>
+      <div id="confirmbox" hidden>
+        <label for="confirm">Ulangi kata sandi</label>
+        <input id="confirm" name="confirm" type="password" autocomplete="new-password" minlength="8">
+      </div>
+      <button class="submit" id="submit" type="submit">Masuk</button>
+    </form>
+    <p class="switch" id="switch"></p>
+  </div>
+</main>
+<script>
+(function () {
+  const $ = (s) => document.querySelector(s);
+  try { if (localStorage.getItem('gudang-ai-token')) { location.replace('/'); return; } } catch (e) {}
+
+  let mode = 'login';
+  function setMode(m) {
+    mode = m;
+    const reg = m === 'register';
+    $('#t-login').setAttribute('aria-selected', String(!reg));
+    $('#t-register').setAttribute('aria-selected', String(reg));
+    $('#namebox').hidden = !reg;
+    $('#confirmbox').hidden = !reg;
+    $('#password').autocomplete = reg ? 'new-password' : 'current-password';
+    $('#submit').textContent = reg ? 'Daftar' : 'Masuk';
+    $('#switch').innerHTML = reg
+      ? 'Sudah punya akun? <button type="button" data-m="login">Masuk</button>'
+      : 'Belum punya akun? <button type="button" data-m="register">Daftar</button>';
+    $('#err').hidden = true;
+    (reg ? $('#name') : $('#email')).focus();
+  }
+  $('#t-login').onclick = () => setMode('login');
+  $('#t-register').onclick = () => setMode('register');
+  $('#switch').onclick = (e) => { const b = e.target.closest('[data-m]'); if (b) setMode(b.dataset.m); };
+
+  function fail(msg) { $('#err').textContent = msg; $('#err').hidden = false; }
+
+  $('#f').onsubmit = async (e) => {
+    e.preventDefault();
+    const email = $('#email').value.trim(), password = $('#password').value, name = $('#name').value.trim();
+    if (mode === 'register') {
+      if (!name) return fail('Nama wajib diisi.');
+      if (password !== $('#confirm').value) return fail('Kedua kata sandi tidak sama.');
+    }
+    if (!email) return fail('Email wajib diisi.');
+    if (password.length < 8) return fail('Kata sandi minimal 8 karakter.');
+    $('#submit').disabled = true;
+    try {
+      const r = await fetch('/api/auth', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action: mode, email, password, name }),
+      });
+      const j = await r.json().catch(() => ({}));
+      if (!r.ok) return fail(j.error || 'Gagal (' + r.status + '). Coba lagi.');
+      localStorage.setItem('gudang-ai-token', j.token);
+      localStorage.setItem('gudang-ai-user', JSON.stringify(j.user));
+      location.replace('/');
+    } catch (err) {
+      fail('Tidak bisa terhubung ke server. Periksa koneksi internet.');
+    } finally {
+      $('#submit').disabled = false;
+    }
+  };
+  setMode('login');
+})();
+</script>
+</body>
+</html>

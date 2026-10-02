@@ -1,10 +1,10 @@
-import { checkAuth } from '../lib/common.js';
+import { requireUser } from '../lib/common.js';
 
 // Proxy tipis ke penyedia AI. Kunci API hanya ada di server.
 // Frontend selalu mengirim format pesan Anthropic; jika GEMINI_API_KEY diatur,
 // pesan diterjemahkan ke format Google Gemini (ada paket gratis), jika tidak memakai Anthropic.
 export default async function handler(req, res) {
-  if (!checkAuth(req, res)) return;
+  if (!(await requireUser(req, res))) return;
   if (req.method !== 'POST') return res.status(405).json({ error: 'Metode tidak didukung' });
 
   const { messages, tools } = req.body || {};

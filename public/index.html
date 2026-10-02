@@ -126,6 +126,7 @@ label.file input{position:absolute;opacity:0;width:1px;height:1px}
   <div class="stripe" aria-hidden="true"></div>
   <div class="bar">
     <div><h1>Gudang tanpa kertas</h1><p class="mode" id="mode">Menyiapkan data…</p></div>
+    <div id="who" class="small muted" style="text-align:right" hidden><span id="whoname"></span><br><button class="ghost" id="logout" style="min-height:36px;padding:4px 10px;margin-top:4px">Keluar</button></div>
   </div>
 </header>
 <main id="app" aria-live="polite"></main>
@@ -174,6 +175,7 @@ async function init(){
   try{user=window.claude?await window.claude.use('user'):null;uid=user?await user.id():null}catch(e){}
   try{sample=window.claude?await window.claude.use('sample'):null;caps=sample?await sample.limits().catch(()=>null):null}catch(e){}
   try{if(user)meName=(await user.me()).name||''}catch(e){}
+  if(meName&&window.gudangLogout){$('#whoname').textContent=meName;$('#who').hidden=false;$('#logout').onclick=()=>window.gudangLogout()}
   render();if(!$('#buddy').hidden)renderChat();
 }
 async function put(col,id,data){
