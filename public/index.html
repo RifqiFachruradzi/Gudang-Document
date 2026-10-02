@@ -277,7 +277,13 @@ let tab='beranda',rx=null,poDraft=null,grnView=null,stokQ='',ai={busy:null};
 let myRole='petugas',grnFilter='semua',adminData=null,adminBusy=false;
 const ROLES=['viewer','petugas','supervisor','admin'],ROLE_LABEL={viewer:'Viewer',petugas:'Petugas',supervisor:'Supervisor',admin:'Admin'};
 const can=r=>ROLES.indexOf(myRole)>=ROLES.indexOf(r);
-const names={};
+const names={},ttdCache={};
+function sigSrc(g){
+  if(typeof g.ttd==='string')return g.ttd;
+  if(ttdCache[g.no])return ttdCache[g.no];
+  if(!(g.no in ttdCache)&&window.gudangApi){ttdCache[g.no]='';window.gudangApi.signature(g.no).then(t=>{ttdCache[g.no]=t||'';if(t&&grnView===g.no)render()}).catch(()=>{delete ttdCache[g.no]})}
+  return'data:image/gif;base64,R0lGODlhAQABAAAAACw=';
+}
 
 function toast(m){const t=$('#toast');t.textContent=m;t.classList.add('on');clearTimeout(toast.t);toast.t=setTimeout(()=>t.classList.remove('on'),2800)}
 const tol=()=>Number(state.config.settings?.toleransi??2);
@@ -347,7 +353,7 @@ function evaluate(){
 }
 const stChip={sesuai:'<span class="chip c-ok">Sesuai</span>',catatan:'<span class="chip c-warn">Dalam toleransi</span>',tahan:'<span class="chip c-bad">Ditahan</span>',belum:'<span class="chip c-n">Belum discan</span>'};
 
-function startRx(id){rx={poId:id,sj:{},fisik:{},rusak:{},unknown:[],sjNo:'',pengirim:'',catatan:'',approved:false,sign:null,aiSJ:null,inspeksi:[],last:null};tab='terima';render();setTimeout(()=>$('#scan')?.focus(),50)}
+function startRx(id){const p0=state.pos[id];if(!p0||p0.status==='Diterima'||p0.status==='Ditahan'){toast('PO ini sudah diterima dan tidak bisa diterima dua kali');return}rx={poId:id,sj:{},fisik:{},rusak:{},unknown:[],sjNo:'',pengirim:'',catatan:'',approved:false,sign:null,aiSJ:null,inspeksi:[],last:null};tab='terima';render();setTimeout(()=>$('#scan')?.focus(),50)}
 function scan(raw){
   const parts=raw.trim();if(!parts)return;const po=state.pos[rx.poId];
   const m=Math.max(1,parseInt($('#mult')?.value||'1',10)||1);
@@ -359,8 +365,8 @@ function scan(raw){
 
 function viewTerima(){
   if(!rx){
-    const open=Object.entries(state.pos).filter(([,p])=>p.status!=='Diterima').sort((a,b)=>String(a[1].tanggal).localeCompare(String(b[1].tanggal)));
-    if(!open.length)return`<div class="card"><h2>Belum ada PO yang menunggu</h2><p class="muted">Buat PO dulu, lalu barang yang datang bisa diverifikasi di sini.</p>${can('supervisor')?'<button class="primary" data-act="newpo">Buat PO</button>':''}</div>`;
+    const open=Object.entries(state.pos).filter(([,p])=>p.status!=='Diterima'&&p.status!=='Ditahan').sort((a,b)=>String(a[1].tanggal).localeCompare(String(b[1].tanggal)));
+    if(!open.length)return`<div class="card"><h2>Belum ada PO yang menunggu</h2><p class="muted">Semua PO sudah diterima. PO yang ditahan menunggu persetujuan di menu Riwayat.</p>${can('supervisor')?'<button class="primary" data-act="newpo">Buat PO</button>':''}</div>`;
     return`<h2>Pilih PO untuk kiriman yang datang</h2>`+open.map(([id,p])=>`<button class="po card" data-act="start" data-id="${esc(id)}">
       <div class="row between"><b>${esc(p.no)}</b>${p.status==='Ditahan'?'<span class="chip c-bad">Ditahan</span>':'<span class="chip c-n">Menunggu</span>'}</div>
       <div>${esc(p.supplier)}</div><div class="small muted">${p.items.length} jenis barang, ${fmt(p.items.reduce((a,i)=>a+Number(i.qty),0))} unit, dipesan ${esc(p.tanggal||'')}</div>
@@ -430,7 +436,7 @@ function viewPO(){
     <div class="row" style="margin-top:12px"><button data-act="additem">Tambah barang</button><button class="primary" data-act="savepo">Simpan PO</button><button class="ghost" data-act="cancelpo">Batal</button></div></div>`;
   }else h+=can('supervisor')?`<button class="primary" style="margin-bottom:14px" data-act="newpo">Buat PO</button>`:`<p class="small muted">PO dibuat oleh Supervisor atau Admin.</p>`;
   if(!list.length)h+=`<p class="muted">Belum ada PO.</p>`;
-  h+=list.map(([id,p])=>`<div class="card"><div class="row between"><h3 style="margin:0">${esc(p.no)}</h3><span class="chip ${p.status==='Diterima'?'c-ok':p.status==='Ditahan'?'c-bad':'c-n'}">${esc(p.status)}</span></div><div>${esc(p.supplier)}</div><div class="small muted">${esc(p.tanggal||'')}</div><ul class="small" style="margin:8px 0 0;padding-left:18px">${p.items.map(i=>`<li>${esc(i.nama)}: ${fmt(i.qty)} ${esc(i.satuan)}</li>`).join('')}</ul>${p.status!=='Diterima'&&!readOnly?`<button style="margin-top:10px" data-act="start" data-id="${esc(id)}">Terima barang</button>`:''}</div>`).join('');
+  h+=list.map(([id,p])=>`<div class="card"><div class="row between"><h3 style="margin:0">${esc(p.no)}</h3><span class="chip ${p.status==='Diterima'?'c-ok':p.status==='Ditahan'?'c-bad':'c-n'}">${esc(p.status==='Ditahan'?'Ditahan, menunggu persetujuan':p.status)}</span></div><div>${esc(p.supplier)}</div><div class="small muted">${esc(p.tanggal||'')}</div><ul class="small" style="margin:8px 0 0;padding-left:18px">${p.items.map(i=>`<li>${esc(i.nama)}: ${fmt(i.qty)} ${esc(i.satuan)}</li>`).join('')}</ul>${p.status!=='Diterima'&&p.status!=='Ditahan'&&!readOnly?`<button style="margin-top:10px" data-act="start" data-id="${esc(id)}">Terima barang</button>`:''}</div>`).join('');
   return h;
 }
 
@@ -455,7 +461,7 @@ function viewRiwayat(){
     ${g.unknown?.length?`<p class="small">Kode di luar PO: ${g.unknown.map(esc).join(', ')}</p>`:''}
     ${(g.inspeksi||[]).map(x=>`<div class="ai">Inspeksi foto AI: kondisi ${esc(x.kondisi)}. ${esc((x.temuan||[]).join('. '))}</div>`).join('')}
     ${g.catatan?`<p><b>Catatan:</b> ${esc(g.catatan)}</p>`:''}
-    ${g.ttd?`<p class="small muted" style="margin:12px 0 4px">Tanda tangan pengirim</p><img src="${g.ttd}" alt="Tanda tangan pengirim" style="background:#fff;border:1px solid var(--line);border-radius:8px;max-height:120px">`:''}</div>`;
+    ${g.ttd?`<p class="small muted" style="margin:12px 0 4px">Tanda tangan pengirim</p><img src="${esc(sigSrc(g))}" alt="Tanda tangan pengirim" style="background:#fff;border:1px solid var(--line);border-radius:8px;max-height:120px">`:''}</div>`;
   }
   if(!list.length)return`<h2>Riwayat penerimaan</h2><p class="muted">Belum ada penerimaan. Bukti terima digital (GRN) akan tersimpan di sini.</p>`;
   const F={semua:()=>true,ditahan:g=>g.keputusan==='Ditahan',catatan:g=>g.keputusan!=='Ditahan'&&g.hasil!=='Diterima',diterima:g=>g.hasil==='Diterima'};
@@ -474,7 +480,7 @@ function viewBeranda(){
   const grn=Object.values(state.grn).sort((a,b)=>String(b.waktu).localeCompare(String(a.waktu)));
   resolveNames(grn.slice(0,6).map(g=>g.petugas).filter(Boolean));
   const today=new Date().toDateString();
-  const open=Object.entries(state.pos).filter(([,p])=>p.status!=='Diterima').sort((a,b)=>String(a[1].tanggal).localeCompare(String(b[1].tanggal)));
+  const open=Object.entries(state.pos).filter(([,p])=>p.status!=='Diterima'&&p.status!=='Ditahan').sort((a,b)=>String(a[1].tanggal).localeCompare(String(b[1].tanggal)));
   const held=grn.filter(g=>g.keputusan==='Ditahan'),todayN=grn.filter(g=>new Date(g.waktu).toDateString()===today).length;
   const stok=Object.values(state.stok),units=stok.reduce((a,s)=>a+(Number(s.qty)||0),0);
   const chip=g=>`<span class="chip ${g.keputusan.startsWith('Diterima')?(g.hasil==='Diterima'?'c-ok':'c-warn'):'c-bad'}">${esc(g.keputusan)}</span>`;
@@ -526,15 +532,8 @@ async function adminUpdate(email,patch){
   catch(e){toast(e.message||'Gagal menyimpan perubahan')}
 }
 async function approveGRN(id){
-  const g=clone(state.grn[id]);if(!g||g.keputusan!=='Ditahan')return;
-  const d=new Date();
-  try{
-    await put('grn',id,{...g,keputusan:'Diterima, disetujui supervisor'});
-    for(const r of g.items){if(r.baik<=0)continue;const cur=clone(state.stok[r.sku]);
-      await put('stok',r.sku,{sku:r.sku,nama:r.nama,satuan:r.satuan,qty:(Number(cur.qty)||0)+r.baik,lokasi:cur.lokasi||suggestLokasi(),update:d.toISOString()})}
-    const po=clone(state.pos[g.poId]);if(po.no){po.status='Diterima';await put('pos',g.poId,po)}
-    toast('Disetujui. Stok sudah bertambah.');render();
-  }catch(e){toast(e.message)}
+  try{await window.gudangApi.approve(id);toast('Disetujui. Stok sudah bertambah.');render()}
+  catch(e){toast(e.message||'Gagal menyetujui');render()}
 }
 function downloadCSV(name,rows){
   const cell=v=>{const t=String(v??'');return/[",;\n]/.test(t)?'"'+t.replace(/"/g,'""')+'"':t};
@@ -601,28 +600,16 @@ Balas HANYA dengan JSON: {"kondisi":"baik"|"rusak"|"ragu","temuan":[string],"sar
   ai.busy=null;render();
 }
 
-function suggestLokasi(){
-  const used=new Set(Object.values(state.stok).map(s=>s.lokasi));
-  for(const z of['A','B','C','D'])for(let n=1;n<=20;n++){const l=z+'-'+String(n).padStart(2,'0');if(!used.has(l))return l}
-  return'E-01';
-}
 async function saveGRN(){
   const ev=evaluate();
   if(ev.rows.every(r=>r.fisik===0)){toast('Scan barang dulu sebelum menyimpan');return}
   if(!rx.sign){toast('Minta tanda tangan pengirim dulu');return}
-  const po=clone(state.pos[rx.poId]);
-  const keputusan=ev.hasil==='Ditahan'?(rx.approved?'Diterima, disetujui supervisor':'Ditahan'):ev.hasil;
-  const accepted=keputusan!=='Ditahan';const d=new Date();
-  const id='GRN-'+d.toISOString().replace(/[-:T]/g,'').slice(0,14);
-  const g={no:id,poId:rx.poId,poNo:po.no,supplier:po.supplier,waktu:d.toISOString(),petugas:uid,hasil:ev.hasil,keputusan,items:ev.rows,unknown:rx.unknown,sjNo:rx.sjNo,pengirim:rx.pengirim,catatan:rx.catatan,inspeksi:rx.inspeksi,ttd:rx.sign};
   const btn=$('[data-act="savegrn"]');if(btn){btn.disabled=true;btn.textContent='Menyimpan…'}
   try{
-    await put('grn',id,g);
-    if(accepted)for(const r of ev.rows){if(r.baik<=0)continue;const cur=clone(state.stok[r.sku]);
-      await put('stok',r.sku,{sku:r.sku,nama:r.nama,satuan:r.satuan,qty:(Number(cur.qty)||0)+r.baik,lokasi:cur.lokasi||suggestLokasi(),update:d.toISOString()})}
-    po.status=accepted?'Diterima':'Ditahan';po.grn=id;await put('pos',g.poId,po);
-    rx=null;tab='riwayat';grnView=id;toast(accepted?'Diterima. Stok sudah bertambah.':'Disimpan sebagai ditahan. Stok belum bertambah.');render();
-  }catch(e){toast(e.message);if(btn){btn.disabled=false;btn.textContent='Simpan penerimaan'}}
+    const r=await window.gudangApi.receive({poId:rx.poId,sj:rx.sj,fisik:rx.fisik,rusak:rx.rusak,unknown:rx.unknown,sjNo:rx.sjNo,pengirim:rx.pengirim,catatan:rx.catatan,inspeksi:rx.inspeksi,ttd:rx.sign,approved:!!rx.approved});
+    const g=r.grn;ttdCache[g.no]=rx.sign;
+    rx=null;tab='riwayat';grnView=g.no;toast(g.keputusan!=='Ditahan'?'Diterima. Stok sudah bertambah.':'Disimpan sebagai ditahan. Stok belum bertambah.');render();window.scrollTo(0,0);
+  }catch(e){toast(e.message||'Gagal menyimpan');if(btn){btn.disabled=false;btn.textContent='Simpan penerimaan'}}
 }
 
 document.addEventListener('click',async e=>{

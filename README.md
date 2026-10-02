@@ -26,6 +26,8 @@ lib/common.js           Cek sesi login + klien Redis
 
 Akun yang mendaftar sendiri berstatus **menunggu** sampai disetujui admin di tab **Admin**. Semua aturan peran dicek di server. Bukti penerimaan (GRN) tidak bisa diubah setelah disimpan, kecuali persetujuan supervisor untuk GRN yang ditahan. Setiap perubahan data tercatat di log audit (5.000 entri terakhir).
 
+Penerimaan dan persetujuan diproses di server dalam satu langkah: hasil pencocokan dihitung ulang di server, setiap PO hanya bisa diterima sekali (terkunci walau dua petugas menyimpan bersamaan), dan stok ditambah secara atomik di Redis sehingga tidak ada penambahan yang hilang. Aplikasi hanya mengunduh ulang data bila ada perubahan (nomor versi), dan gambar tanda tangan disimpan terpisah lalu dimuat saat detail GRN dibuka.
+
 Fitur lain: ekspor CSV stok dan riwayat penerimaan (format `;` untuk Excel Indonesia), cetak/PDF GRN, dan ganti kata sandi di menu **Akun**.
 
 ## Deploy ke Vercel

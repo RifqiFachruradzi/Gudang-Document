@@ -62,14 +62,25 @@
     changePassword: (oldPw, newPw) => api('/api/auth', { method: 'POST', body: JSON.stringify({ action: 'password', old: oldPw, new: newPw }) }),
     adminList: () => api('/api/admin'),
     adminUpdate: (email, patch) => api('/api/admin', { method: 'POST', body: JSON.stringify({ email, ...patch }) }),
+    receive: async (payload) => { const r = await api('/api/data', { method: 'POST', body: JSON.stringify({ action: 'receive', ...payload }) }); await refresh(); return r; },
+    approve: async (id) => { const r = await api('/api/data', { method: 'POST', body: JSON.stringify({ action: 'approve', id }) }); await refresh(); return r; },
+    signature: (id) => api('/api/data?ttd=' + encodeURIComponent(id)).then(r => r.ttd),
   };
 
   // ---------- db ----------
   const listeners = {};
   let cache = null, polling = null;
-  async function refresh() {
+  // Hanya unduh ulang semua data bila versi di server berubah; selain itu cukup satu cek kecil.
+  let refreshing = null;
+  function refresh() {
+    if (!refreshing) refreshing = doRefresh().finally(() => { refreshing = null; });
+    return refreshing;
+  }
+  async function doRefresh() {
     try {
-      cache = await api('/api/data');
+      const r = await api('/api/data' + (cache && cache.ver ? '?since=' + cache.ver : ''));
+      if (r.same) return;
+      cache = r;
       for (const col in listeners) deliver(col);
     } catch (e) {
       for (const col in listeners) listeners[col].forEach(l => l.err && l.err(e));
