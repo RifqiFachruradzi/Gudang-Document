@@ -1,4 +1,4 @@
-import { requireUser, redis } from '../lib/common.js';
+import { requireUser, redis, audit, atLeast } from '../lib/common.js';
 
 const COLS = ['pos', 'stok', 'grn', 'config'];
 const KEY = (c) => `gudang:${c}`;
@@ -26,7 +26,8 @@ function parseHash(arr) {
 }
 
 export default async function handler(req, res) {
-  if (!(await requireUser(req, res))) return;
+  const me = await requireUser(req, res);
+  if (!me) return;
   try {
     if (req.method === 'GET') {
       const out = {};
@@ -42,13 +43,45 @@ export default async function handler(req, res) {
       return res.status(200).json(out);
     }
     if (req.method === 'POST') {
-      const { col, id, data } = req.body || {};
-      if (!COLS.includes(col) || !ID_RE.test(String(id)) || !data || typeof data !== 'object')
+      const { col, id } = req.body || {};
+      let data = req.body?.data;
+      if (!COLS.includes(col) || !ID_RE.test(String(id)) || !data || typeof data !== 'object' || Array.isArray(data))
         return res.status(400).json({ error: 'Data tidak valid' });
+      const prevRaw = await redis('HGET', KEY(col), id);
+      const prev = prevRaw ? JSON.parse(prevRaw) : null;
+      const deny = (msg) => res.status(403).json({ error: msg });
+
+      // Aturan peran, dicek di server agar tidak bisa dilewati dari browser.
+      if (!atLeast(me, 'petugas')) return deny('Akun Viewer hanya bisa melihat data');
+      if (col === 'config' && !atLeast(me, 'supervisor')) return deny('Hanya Supervisor atau Admin yang bisa mengubah aturan verifikasi');
+      if (col === 'pos' && !atLeast(me, 'supervisor')) {
+        // Petugas hanya boleh memperbarui status PO saat menyimpan penerimaan.
+        const same = prev && JSON.stringify({ ...prev, status: 0, grn: 0 }) === JSON.stringify({ ...data, status: 0, grn: 0 });
+        if (!same) return deny('Hanya Supervisor atau Admin yang bisa membuat atau mengubah PO');
+      }
+      if (col === 'grn') {
+        const approved = data.keputusan === 'Diterima, disetujui supervisor';
+        if (approved && !atLeast(me, 'supervisor')) return deny('Hanya Supervisor atau Admin yang bisa menyetujui barang yang ditahan');
+        if (prev) {
+          // GRN yang sudah tersimpan tidak bisa diubah, kecuali supervisor menyetujui GRN yang ditahan.
+          if (!(prev.keputusan === 'Ditahan' && approved && atLeast(me, 'supervisor')))
+            return deny('Bukti penerimaan (GRN) yang sudah tersimpan tidak bisa diubah');
+          data = { ...prev, keputusan: data.keputusan, disetujuiOleh: me.email, disetujuiWaktu: new Date().toISOString() };
+        } else {
+          data = { ...data, petugas: me.email, ...(approved ? { disetujuiOleh: me.email, disetujuiWaktu: new Date().toISOString() } : {}) };
+        }
+      }
+
       const json = JSON.stringify(data);
       if (json.length > 256 * 1024) return res.status(400).json({ error: 'Data terlalu besar' });
       await redis('HSET', KEY(col), id, json);
-      return res.status(200).json({ ok: true });
+      const label = { pos: 'PO', stok: 'stok', grn: 'penerimaan', config: 'pengaturan' }[col];
+      const detail = col === 'stok' ? `${id}: ${prev ? prev.qty : 0} → ${data.qty} ${data.satuan || ''}`.trim()
+        : col === 'grn' ? `${id} (${data.poNo}): ${data.keputusan}`
+        : col === 'pos' ? `${id}: ${prev ? 'status ' + (prev.status || '-') + ' → ' + (data.status || '-') : 'dibuat'}`
+        : `${id}: ${json.slice(0, 120)}`;
+      await audit(me, `${prev ? 'ubah' : 'buat'} ${label}`, detail);
+      return res.status(200).json({ ok: true, data });
     }
     res.setHeader('Allow', 'GET, POST');
     return res.status(405).json({ error: 'Metode tidak didukung' });

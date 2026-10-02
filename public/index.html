@@ -119,6 +119,31 @@ label.file input{position:absolute;opacity:0;width:1px;height:1px}
 .bnote{font-size:12px;color:var(--muted);text-align:center;margin:6px 0 0}
 .dots::after{content:"…"}
 @media (prefers-reduced-motion:reduce){#toast{transition:none}}
+.who{display:flex;flex-direction:column;align-items:flex-end;gap:4px;text-align:right}
+.who .row{gap:6px;justify-content:flex-end;flex-wrap:nowrap}
+.who button{min-height:36px;padding:4px 10px;font-size:14px}
+.role{display:inline-block;font-size:12px;font-weight:600;letter-spacing:.04em;text-transform:uppercase;border-radius:4px;padding:1px 6px;background:var(--soft);border:1px solid var(--line);color:var(--muted)}
+.toolbar{display:flex;gap:8px;flex-wrap:wrap;align-items:center;justify-content:space-between;margin:0 0 12px}
+.toolbar h2{margin:0}
+.filters{display:flex;gap:6px;flex-wrap:wrap;margin:0 0 12px}
+.filters button{min-height:36px;padding:4px 12px;font-size:14px;font-weight:500}
+.filters button[aria-pressed="true"]{background:var(--ink);color:var(--bg);border-color:var(--ink)}
+.urow{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:8px 12px;padding:12px 0;border-bottom:1px solid var(--line);align-items:center}
+.urow:last-child{border-bottom:0}
+.urow .acts{display:flex;gap:6px;flex-wrap:wrap;justify-content:flex-end}
+.urow select{width:auto;min-height:38px;padding:4px 8px}
+.urow button{min-height:38px;padding:4px 10px;font-size:14px}
+@media (max-width:560px){.urow{grid-template-columns:1fr}.urow .acts{justify-content:flex-start}}
+.log{font-size:14px;border-bottom:1px solid var(--line);padding:8px 0}
+.log:last-child{border-bottom:0}
+.log time{color:var(--muted);font-size:13px;display:block}
+.note{background:var(--warn-bg);color:var(--warn);border-radius:8px;padding:10px 12px;font-size:14px;margin-top:12px}
+@media print{
+  body{background:#fff;color:#000;padding:0}
+  .top,.tabs,.fab,.buddy,#toast,.noprint{display:none!important}
+  .card{border:0;padding:0}
+  main{max-width:none;padding:0}
+}
 </style>
 </head>
 <body>
@@ -126,7 +151,7 @@ label.file input{position:absolute;opacity:0;width:1px;height:1px}
   <div class="stripe" aria-hidden="true"></div>
   <div class="bar">
     <div><h1>Gudang tanpa kertas</h1><p class="mode" id="mode">Menyiapkan data…</p></div>
-    <div id="who" class="small muted" style="text-align:right" hidden><span id="whoname"></span><br><button class="ghost" id="logout" style="min-height:36px;padding:4px 10px;margin-top:4px">Keluar</button></div>
+    <div id="who" class="who small muted" hidden><span><span id="whoname"></span> <span class="role" id="whorole"></span></span><span class="row"><button class="ghost" data-act="akun">Akun</button><button class="ghost" id="logout">Keluar</button></span></div>
   </div>
 </header>
 <main id="app" aria-live="polite"></main>
@@ -135,6 +160,7 @@ label.file input{position:absolute;opacity:0;width:1px;height:1px}
   <button data-tab="po">PO</button>
   <button data-tab="stok">Stok</button>
   <button data-tab="riwayat">Riwayat</button>
+  <button data-tab="admin" id="tabadmin" hidden>Admin</button>
 </nav>
 <button class="fab" id="fab" aria-label="Buka Gudi, asisten AI gudang"><svg viewBox="0 0 64 64" aria-hidden="true"><line x1="32" y1="6" x2="32" y2="14" stroke="#15212B" stroke-width="2.5"/><circle cx="32" cy="6" r="3.5" fill="#F2B705" stroke="#15212B" stroke-width="2"/><path d="M10 22 L32 14 L54 22 L54 50 L32 58 L10 50 Z" fill="#C8955A" stroke="#15212B" stroke-width="2.5" stroke-linejoin="round"/><path d="M10 22 L32 30 L54 22" fill="none" stroke="#15212B" stroke-width="2.5" stroke-linejoin="round"/><path d="M32 30 L32 58" stroke="#15212B" stroke-width="2"/><rect x="14" y="34" width="36" height="8" fill="#F2B705" transform="skewY(0)"/><circle cx="23" cy="45" r="3" fill="#15212B"/><circle cx="41" cy="45" r="3" fill="#15212B"/><path d="M27 51 Q32 54 37 51" fill="none" stroke="#15212B" stroke-width="2" stroke-linecap="round"/></svg></button>
 <section class="buddy" id="buddy" hidden aria-label="Gudi, asisten AI gudang">
@@ -156,6 +182,9 @@ const COLS=['pos','stok','grn','config'];
 const state={pos:{},stok:{},grn:{},config:{}};
 let ready=false,backend=null,db=null,user=null,uid=null,sample=null,caps=null,readOnly=false;
 let tab='terima',rx=null,poDraft=null,grnView=null,stokQ='',ai={busy:null};
+let myRole='petugas',grnFilter='semua',adminData=null,adminBusy=false;
+const ROLES=['viewer','petugas','supervisor','admin'],ROLE_LABEL={viewer:'Viewer',petugas:'Petugas',supervisor:'Supervisor',admin:'Admin'};
+const can=r=>ROLES.indexOf(myRole)>=ROLES.indexOf(r);
 const names={};
 
 function toast(m){const t=$('#toast');t.textContent=m;t.classList.add('on');clearTimeout(toast.t);toast.t=setTimeout(()=>t.classList.remove('on'),2800)}
@@ -174,14 +203,17 @@ async function init(){
   }
   try{user=window.claude?await window.claude.use('user'):null;uid=user?await user.id():null}catch(e){}
   try{sample=window.claude?await window.claude.use('sample'):null;caps=sample?await sample.limits().catch(()=>null):null}catch(e){}
-  try{if(user)meName=(await user.me()).name||''}catch(e){}
-  if(meName&&window.gudangLogout){$('#whoname').textContent=meName;$('#who').hidden=false;$('#logout').onclick=()=>window.gudangLogout()}
+  try{if(user){const m=await user.me();meName=m.name||'';myRole=m.role||'petugas'}}catch(e){}
+  readOnly=!can('petugas');
+  if(meName&&window.gudangLogout){$('#whoname').textContent=meName;$('#whorole').textContent=ROLE_LABEL[myRole]||myRole;$('#who').hidden=false;$('#logout').onclick=()=>window.gudangLogout()}
+  $('#tabadmin').hidden=!can('admin');
   render();if(!$('#buddy').hidden)renderChat();
 }
 async function put(col,id,data){
   if(backend==='db'){
     try{await db.collection(col).doc(id).set(data)}
-    catch(e){if(e&&e.code==='invalid_argument'){readOnly=true;render();throw new Error('Akun Anda hanya bisa melihat data, tidak bisa menyimpan.')}
+    catch(e){if(e&&e.code==='forbidden')throw new Error(e.message||'Akun Anda tidak punya izin untuk tindakan ini.');
+      if(e&&e.code==='invalid_argument'){readOnly=true;render();throw new Error('Akun Anda hanya bisa melihat data, tidak bisa menyimpan.')}
       if(e&&e.code==='quota_exceeded')throw new Error('Penyimpanan penuh. Hapus data lama lalu coba lagi.');throw new Error('Gagal menyimpan ('+(e&&e.code||'error')+'). Coba lagi.')}
   }else{state[col][id]=data;try{localStorage.setItem('gudang-ai-v1',JSON.stringify(state))}catch(e){}render()}
 }
@@ -232,7 +264,7 @@ function scan(raw){
 function viewTerima(){
   if(!rx){
     const open=Object.entries(state.pos).filter(([,p])=>p.status!=='Diterima').sort((a,b)=>String(a[1].tanggal).localeCompare(String(b[1].tanggal)));
-    if(!open.length)return`<div class="card"><h2>Belum ada PO yang menunggu</h2><p class="muted">Buat PO dulu, lalu barang yang datang bisa diverifikasi di sini.</p><button class="primary" data-act="newpo">Buat PO</button></div>`;
+    if(!open.length)return`<div class="card"><h2>Belum ada PO yang menunggu</h2><p class="muted">Buat PO dulu, lalu barang yang datang bisa diverifikasi di sini.</p>${can('supervisor')?'<button class="primary" data-act="newpo">Buat PO</button>':''}</div>`;
     return`<h2>Pilih PO untuk kiriman yang datang</h2>`+open.map(([id,p])=>`<button class="po card" data-act="start" data-id="${esc(id)}">
       <div class="row between"><b>${esc(p.no)}</b>${p.status==='Ditahan'?'<span class="chip c-bad">Ditahan</span>':'<span class="chip c-n">Menunggu</span>'}</div>
       <div>${esc(p.supplier)}</div><div class="small muted">${p.items.length} jenis barang, ${fmt(p.items.reduce((a,i)=>a+Number(i.qty),0))} unit, dipesan ${esc(p.tanggal||'')}</div>
@@ -278,7 +310,7 @@ function viewTerima(){
       <td>${stChip[r.status]}</td></tr>`).join('')}
     </tbody></table></div>
     <div class="stamp ${stampCls}" style="margin-top:14px">${esc(ev.hasil)}<small>${esc(stampSub)}</small></div>
-    ${ev.hasil==='Ditahan'?`<label class="row" style="margin-top:12px;gap:8px"><input type="checkbox" id="appr" data-act="appr" ${rx.approved?'checked':''} style="width:22px;min-height:22px"> Disetujui supervisor, barang tetap diterima</label>`:''}
+    ${ev.hasil==='Ditahan'?(can('supervisor')?`<label class="row" style="margin-top:12px;gap:8px"><input type="checkbox" id="appr" data-act="appr" ${rx.approved?'checked':''} style="width:22px;min-height:22px"> Saya setujui sebagai ${esc(ROLE_LABEL[myRole])}, barang tetap diterima</label>`:`<p class="note">Penerimaan ini akan disimpan sebagai <b>Ditahan</b> dan stok belum bertambah. Supervisor bisa menyetujuinya nanti dari menu Riwayat.</p>`):''}
   </section>
   <section class="card step"><h3>Tanda tangan digital</h3>
     <div class="row" style="align-items:flex-start"><div style="flex:1;min-width:200px"><label class="f" for="pengirim">Nama pengirim / sopir</label><input id="pengirim" data-bind="pengirim" value="${esc(rx.pengirim)}"></div></div>
@@ -293,34 +325,36 @@ function viewTerima(){
 
 function viewPO(){
   const list=Object.entries(state.pos).sort((a,b)=>String(b[1].tanggal).localeCompare(String(a[1].tanggal)));
-  let h=`<div class="card"><h2>Aturan verifikasi</h2><label class="f" for="tol">Toleransi selisih jumlah (%)</label><div class="row"><input id="tol" type="number" min="0" max="50" value="${tol()}" style="max-width:120px"><button data-act="savetol">Simpan</button></div><p class="small muted" style="margin:8px 0 0">Selisih di bawah angka ini diterima dengan catatan. Di atasnya, barang ditahan untuk persetujuan supervisor.</p></div>`;
+  let h=`<div class="card"><h2>Aturan verifikasi</h2><label class="f" for="tol">Toleransi selisih jumlah (%)</label><div class="row"><input id="tol" type="number" min="0" max="50" value="${tol()}" style="max-width:120px" ${can('supervisor')?'':'disabled'}><button data-act="savetol" ${can('supervisor')?'':'disabled'}>Simpan</button></div>${can('supervisor')?'':'<p class="small muted" style="margin:8px 0 0">Hanya Supervisor atau Admin yang bisa mengubah toleransi.</p>'}<p class="small muted" style="margin:8px 0 0">Selisih di bawah angka ini diterima dengan catatan. Di atasnya, barang ditahan untuk persetujuan supervisor.</p></div>`;
   if(poDraft){
     h+=`<div class="card"><h2>PO baru</h2>
     <label class="f" for="pno">Nomor PO</label><input id="pno" data-d="no" value="${esc(poDraft.no)}">
     <label class="f" for="psup" style="margin-top:8px">Supplier</label><input id="psup" data-d="supplier" value="${esc(poDraft.supplier)}">
     ${poDraft.items.map((it,i)=>`<div class="itemrow"><div><label class="f">SKU</label><input data-di="${i}" data-k="sku" value="${esc(it.sku)}"></div><div><label class="f">Barcode</label><input data-di="${i}" data-k="barcode" value="${esc(it.barcode)}" inputmode="numeric"></div><div class="full"><label class="f">Nama barang</label><input data-di="${i}" data-k="nama" value="${esc(it.nama)}"></div><div><label class="f">Jumlah</label><input type="number" min="1" data-di="${i}" data-k="qty" value="${esc(it.qty)}"></div><div><label class="f">Satuan</label><input data-di="${i}" data-k="satuan" value="${esc(it.satuan)}"></div>${poDraft.items.length>1?`<button class="ghost danger full" data-act="delitem" data-i="${i}">Hapus barang ini</button>`:''}</div>`).join('')}
     <div class="row" style="margin-top:12px"><button data-act="additem">Tambah barang</button><button class="primary" data-act="savepo">Simpan PO</button><button class="ghost" data-act="cancelpo">Batal</button></div></div>`;
-  }else h+=`<button class="primary" style="margin-bottom:14px" data-act="newpo" ${readOnly?'disabled':''}>Buat PO</button>`;
+  }else h+=can('supervisor')?`<button class="primary" style="margin-bottom:14px" data-act="newpo">Buat PO</button>`:`<p class="small muted">PO dibuat oleh Supervisor atau Admin.</p>`;
   if(!list.length)h+=`<p class="muted">Belum ada PO.</p>`;
-  h+=list.map(([id,p])=>`<div class="card"><div class="row between"><h3 style="margin:0">${esc(p.no)}</h3><span class="chip ${p.status==='Diterima'?'c-ok':p.status==='Ditahan'?'c-bad':'c-n'}">${esc(p.status)}</span></div><div>${esc(p.supplier)}</div><div class="small muted">${esc(p.tanggal||'')}</div><ul class="small" style="margin:8px 0 0;padding-left:18px">${p.items.map(i=>`<li>${esc(i.nama)}: ${fmt(i.qty)} ${esc(i.satuan)}</li>`).join('')}</ul>${p.status!=='Diterima'?`<button style="margin-top:10px" data-act="start" data-id="${esc(id)}">Terima barang</button>`:''}</div>`).join('');
+  h+=list.map(([id,p])=>`<div class="card"><div class="row between"><h3 style="margin:0">${esc(p.no)}</h3><span class="chip ${p.status==='Diterima'?'c-ok':p.status==='Ditahan'?'c-bad':'c-n'}">${esc(p.status)}</span></div><div>${esc(p.supplier)}</div><div class="small muted">${esc(p.tanggal||'')}</div><ul class="small" style="margin:8px 0 0;padding-left:18px">${p.items.map(i=>`<li>${esc(i.nama)}: ${fmt(i.qty)} ${esc(i.satuan)}</li>`).join('')}</ul>${p.status!=='Diterima'&&!readOnly?`<button style="margin-top:10px" data-act="start" data-id="${esc(id)}">Terima barang</button>`:''}</div>`).join('');
   return h;
 }
 
 function viewStok(){
   const q=stokQ.toLowerCase();
   const list=Object.values(state.stok).filter(s=>!q||(s.nama+s.sku+s.lokasi).toLowerCase().includes(q)).sort((a,b)=>String(a.lokasi).localeCompare(String(b.lokasi)));
-  return`<h2>Stok real-time</h2><input id="stokq" placeholder="Cari nama, SKU, atau lokasi rak" value="${esc(stokQ)}" aria-label="Cari stok" style="margin-bottom:12px">
+  return`<div class="toolbar"><h2>Stok real-time</h2><button class="noprint" data-act="csvstok">Unduh CSV</button></div><input id="stokq" placeholder="Cari nama, SKU, atau lokasi rak" value="${esc(stokQ)}" aria-label="Cari stok" style="margin-bottom:12px">
   <div class="card">${list.length?list.map(s=>`<div class="stock"><div><b>${esc(s.nama)}</b><div class="small muted">${esc(s.sku)}, rak ${esc(s.lokasi||'-')}</div><div class="small muted">Diperbarui ${s.update?new Date(s.update).toLocaleString('id-ID'):'-'}</div></div><div style="text-align:right"><div class="big">${fmt(s.qty)}</div><div class="small muted">${esc(s.satuan)}</div></div></div>`).join(''):`<p class="muted" style="margin:0">${q?'Tidak ada barang yang cocok.':'Stok akan muncul setelah penerimaan pertama disimpan.'}</p>`}</div>`;
 }
 
 function viewRiwayat(){
   const list=Object.values(state.grn).sort((a,b)=>String(b.waktu).localeCompare(String(a.waktu)));
-  resolveNames(list.map(g=>g.petugas).filter(Boolean));
+  resolveNames(list.flatMap(g=>[g.petugas,g.disetujuiOleh]).filter(Boolean));
   if(grnView&&state.grn[grnView]){
     const g=state.grn[grnView];const cls=g.keputusan.startsWith('Diterima')?(g.hasil==='Diterima'?'s-ok':'s-warn'):'s-bad';
-    return`<button class="ghost" data-act="back" style="margin-bottom:10px">Kembali ke riwayat</button>
-    <div class="card"><h2>${esc(g.no)}</h2><p class="small muted" style="margin:0 0 10px">${esc(g.poNo)}, ${esc(g.supplier)}<br>${new Date(g.waktu).toLocaleString('id-ID')}${g.sjNo?', surat jalan '+esc(g.sjNo):''}<br>Petugas: ${esc(names[g.petugas]||'Petugas gudang')}${g.pengirim?', pengirim: '+esc(g.pengirim):''}</p>
+    const held=g.keputusan==='Ditahan';
+    return`<div class="row noprint" style="margin-bottom:10px"><button class="ghost" data-act="back">Kembali ke riwayat</button><button class="ghost" data-act="print">Cetak / PDF</button></div>
+    <div class="card"><h2>${esc(g.no)}</h2><p class="small muted" style="margin:0 0 10px">${esc(g.poNo)}, ${esc(g.supplier)}<br>${new Date(g.waktu).toLocaleString('id-ID')}${g.sjNo?', surat jalan '+esc(g.sjNo):''}<br>Petugas: ${esc(names[g.petugas]||g.petugas||'Petugas gudang')}${g.pengirim?', pengirim: '+esc(g.pengirim):''}${g.disetujuiOleh?`<br>Disetujui: ${esc(names[g.disetujuiOleh]||g.disetujuiOleh)}, ${new Date(g.disetujuiWaktu).toLocaleString('id-ID')}`:''}</p>
     <div class="stamp ${cls}">${esc(g.keputusan)}</div>
+    ${held?(can('supervisor')?`<div class="note noprint">Barang ditahan dan stok belum bertambah. Periksa selisihnya, lalu setujui bila barang tetap diterima.<div style="margin-top:8px"><button class="primary" data-act="approvegrn" data-id="${esc(g.no)}">Setujui dan masukkan ke stok</button></div></div>`:`<p class="note noprint">Menunggu persetujuan Supervisor. Stok belum bertambah.</p>`):''}
     <div class="wrap" style="margin-top:12px"><table><thead><tr><th>Barang</th><th>PO</th><th>SJ</th><th>Fisik</th><th>Rusak</th><th>Status</th></tr></thead><tbody>${g.items.map(r=>`<tr><td><b>${esc(r.nama)}</b>${r.notes?.length?`<div class="small">${esc(r.notes.join('. '))}</div>`:''}</td><td class="num">${fmt(r.po)}</td><td class="num">${r.sj??'-'}</td><td class="num">${fmt(r.fisik)}</td><td class="num">${fmt(r.rusak)}</td><td>${stChip[r.status]||''}</td></tr>`).join('')}</tbody></table></div>
     ${g.unknown?.length?`<p class="small">Kode di luar PO: ${g.unknown.map(esc).join(', ')}</p>`:''}
     ${(g.inspeksi||[]).map(x=>`<div class="ai">Inspeksi foto AI: kondisi ${esc(x.kondisi)}. ${esc((x.temuan||[]).join('. '))}</div>`).join('')}
@@ -328,7 +362,11 @@ function viewRiwayat(){
     ${g.ttd?`<p class="small muted" style="margin:12px 0 4px">Tanda tangan pengirim</p><img src="${g.ttd}" alt="Tanda tangan pengirim" style="background:#fff;border:1px solid var(--line);border-radius:8px;max-height:120px">`:''}</div>`;
   }
   if(!list.length)return`<h2>Riwayat penerimaan</h2><p class="muted">Belum ada penerimaan. Bukti terima digital (GRN) akan tersimpan di sini.</p>`;
-  return`<h2>Riwayat penerimaan</h2>`+list.map(g=>`<button class="po card" data-act="grn" data-id="${esc(g.no)}"><div class="row between"><b>${esc(g.no)}</b><span class="chip ${g.keputusan.startsWith('Diterima')?(g.hasil==='Diterima'?'c-ok':'c-warn'):'c-bad'}">${esc(g.keputusan)}</span></div><div>${esc(g.poNo)}, ${esc(g.supplier)}</div><div class="small muted">${new Date(g.waktu).toLocaleString('id-ID')}</div></button>`).join('');
+  const F={semua:()=>true,ditahan:g=>g.keputusan==='Ditahan',catatan:g=>g.keputusan!=='Ditahan'&&g.hasil!=='Diterima',diterima:g=>g.hasil==='Diterima'};
+  const nHeld=list.filter(F.ditahan).length,shown=list.filter(F[grnFilter]||F.semua);
+  return`<div class="toolbar"><h2>Riwayat penerimaan</h2><button data-act="csvgrn">Unduh CSV</button></div>
+  <div class="filters" role="group" aria-label="Saring riwayat">${[['semua','Semua'],['ditahan','Ditahan'+(nHeld?' ('+nHeld+')':'')],['catatan','Dengan catatan'],['diterima','Diterima']].map(([k,l])=>`<button data-act="gfilter" data-f="${k}" aria-pressed="${grnFilter===k}">${l}</button>`).join('')}</div>`
+  +(shown.length?'':'<p class="muted">Tidak ada penerimaan dengan status ini.</p>')+shown.map(g=>`<button class="po card" data-act="grn" data-id="${esc(g.no)}"><div class="row between"><b>${esc(g.no)}</b><span class="chip ${g.keputusan.startsWith('Diterima')?(g.hasil==='Diterima'?'c-ok':'c-warn'):'c-bad'}">${esc(g.keputusan)}</span></div><div>${esc(g.poNo)}, ${esc(g.supplier)}</div><div class="small muted">${new Date(g.waktu).toLocaleString('id-ID')}</div></button>`).join('');
 }
 async function resolveNames(ids){
   const need=[...new Set(ids)].filter(i=>!(i in names));if(!need.length||!user)return;
@@ -336,11 +374,72 @@ async function resolveNames(ids){
   try{const ps=await user.profiles(need);let ch=false;need.forEach(i=>{const n=ps?.[i]?.name||'';if(n){names[i]=n;ch=true}});if(ch)render()}catch(e){}
 }
 
+function viewAkun(){
+  return`<h2>Akun saya</h2>
+  <div class="card"><p style="margin:0">${esc(meName)} <span class="role">${esc(ROLE_LABEL[myRole]||myRole)}</span></p><p class="small muted" style="margin:4px 0 0">${esc(uid||'')}</p></div>
+  <form class="card" id="pwform"><h3>Ganti kata sandi</h3>
+    <label class="f" for="pwold">Kata sandi lama</label><input id="pwold" type="password" autocomplete="current-password" autocapitalize="none">
+    <label class="f" for="pwnew" style="margin-top:8px">Kata sandi baru (minimal 8 karakter)</label><input id="pwnew" type="password" autocomplete="new-password" autocapitalize="none">
+    <label class="f" for="pwnew2" style="margin-top:8px">Ulangi kata sandi baru</label><input id="pwnew2" type="password" autocomplete="new-password" autocapitalize="none">
+    <button class="primary" type="submit" style="margin-top:12px">Simpan kata sandi baru</button></form>`;
+}
+function viewAdmin(){
+  if(!adminData){if(!adminBusy)loadAdmin();return'<h2>Admin</h2><p class="muted">Memuat data pengguna…</p>'}
+  const pend=adminData.users.filter(u=>u.status==='pending');
+  const st={active:'<span class="chip c-ok">Aktif</span>',pending:'<span class="chip c-warn">Menunggu</span>',disabled:'<span class="chip c-bad">Nonaktif</span>'};
+  return`<div class="toolbar"><h2>Pengguna</h2><button data-act="adminreload">Muat ulang</button></div>
+  ${pend.length?`<p class="note">${pend.length} akun menunggu persetujuan. Pilih perannya, lalu tekan Setujui.</p>`:''}
+  <div class="card">${adminData.users.map(u=>{const self=u.email===uid;return`<div class="urow"><div style="min-width:0"><b>${esc(u.name)}</b> ${st[u.status]||''}<div class="small muted" style="overflow-wrap:anywhere">${esc(u.email)}</div></div>
+    <div class="acts">${self?'<span class="small muted">Akun Anda</span>':`<select data-urole="${esc(u.email)}" aria-label="Peran ${esc(u.name)}">${ROLES.map(r=>`<option value="${r}" ${u.role===r?'selected':''}>${ROLE_LABEL[r]}</option>`).join('')}</select>
+    ${u.status==='pending'?`<button class="primary" data-act="ustatus" data-email="${esc(u.email)}" data-s="active">Setujui</button><button class="ghost danger" data-act="ustatus" data-email="${esc(u.email)}" data-s="disabled">Tolak</button>`
+    :u.status==='active'?`<button class="ghost danger" data-act="ustatus" data-email="${esc(u.email)}" data-s="disabled">Nonaktifkan</button>`
+    :`<button data-act="ustatus" data-email="${esc(u.email)}" data-s="active">Aktifkan</button>`}`}</div></div>`}).join('')}</div>
+  <h2 style="margin-top:20px">Log audit</h2><p class="small muted" style="margin:-6px 0 10px">300 aktivitas terakhir: siapa mengubah apa dan kapan.</p>
+  <div class="card">${adminData.audit.length?adminData.audit.map(a=>`<div class="log"><time>${new Date(a.waktu).toLocaleString('id-ID')}</time><b>${esc(a.nama)}</b> <span class="muted">${esc(a.aksi)}</span><div style="overflow-wrap:anywhere">${esc(a.detail)}</div></div>`).join(''):'<p class="muted" style="margin:0">Belum ada aktivitas.</p>'}</div>`;
+}
+async function loadAdmin(){
+  adminBusy=true;
+  try{adminData=await window.gudangApi.adminList()}catch(e){toast(e.message||'Gagal memuat data admin');adminData={users:[],audit:[]}}
+  adminBusy=false;if(tab==='admin')render();
+}
+async function adminUpdate(email,patch){
+  try{await window.gudangApi.adminUpdate(email,patch);toast('Perubahan disimpan');adminData=null;render()}
+  catch(e){toast(e.message||'Gagal menyimpan perubahan')}
+}
+async function approveGRN(id){
+  const g=clone(state.grn[id]);if(!g||g.keputusan!=='Ditahan')return;
+  const d=new Date();
+  try{
+    await put('grn',id,{...g,keputusan:'Diterima, disetujui supervisor'});
+    for(const r of g.items){if(r.baik<=0)continue;const cur=clone(state.stok[r.sku]);
+      await put('stok',r.sku,{sku:r.sku,nama:r.nama,satuan:r.satuan,qty:(Number(cur.qty)||0)+r.baik,lokasi:cur.lokasi||suggestLokasi(),update:d.toISOString()})}
+    const po=clone(state.pos[g.poId]);if(po.no){po.status='Diterima';await put('pos',g.poId,po)}
+    toast('Disetujui. Stok sudah bertambah.');render();
+  }catch(e){toast(e.message)}
+}
+function downloadCSV(name,rows){
+  const cell=v=>{const t=String(v??'');return/[",;\n]/.test(t)?'"'+t.replace(/"/g,'""')+'"':t};
+  const csv='\ufeff'+rows.map(r=>r.map(cell).join(';')).join('\r\n');
+  const a=document.createElement('a');a.href=URL.createObjectURL(new Blob([csv],{type:'text/csv;charset=utf-8'}));
+  a.download=name;document.body.appendChild(a);a.click();setTimeout(()=>{URL.revokeObjectURL(a.href);a.remove()},500);
+}
+function csvStok(){
+  const rows=[['SKU','Nama barang','Jumlah','Satuan','Lokasi rak','Diperbarui']];
+  Object.values(state.stok).sort((a,b)=>String(a.sku).localeCompare(String(b.sku))).forEach(s=>rows.push([s.sku,s.nama,s.qty,s.satuan,s.lokasi||'',s.update?new Date(s.update).toLocaleString('id-ID'):'']));
+  downloadCSV('stok-'+new Date().toISOString().slice(0,10)+'.csv',rows);
+}
+function csvGRN(){
+  const rows=[['No GRN','Waktu','No PO','Supplier','No surat jalan','Keputusan','Petugas','Disetujui oleh','Pengirim','SKU','Nama barang','Satuan','Qty PO','Qty surat jalan','Qty fisik','Qty rusak','Qty baik','Catatan baris']];
+  Object.values(state.grn).sort((a,b)=>String(a.waktu).localeCompare(String(b.waktu))).forEach(g=>g.items.forEach(r=>rows.push([g.no,new Date(g.waktu).toLocaleString('id-ID'),g.poNo,g.supplier,g.sjNo||'',g.keputusan,names[g.petugas]||g.petugas||'',g.disetujuiOleh?(names[g.disetujuiOleh]||g.disetujuiOleh):'',g.pengirim||'',r.sku,r.nama,r.satuan,r.po,r.sj??'',r.fisik,r.rusak,r.baik,(r.notes||[]).join('. ')])));
+  downloadCSV('penerimaan-'+new Date().toISOString().slice(0,10)+'.csv',rows);
+}
+
 function render(){
   document.querySelectorAll('.tabs button').forEach(b=>b.setAttribute('aria-current',b.dataset.tab===tab?'true':'false'));
   if(!ready){$('#app').innerHTML='<p class="muted">Memuat data gudang…</p>';return}
   const a=document.activeElement,id=a&&a.id;let ss=null,se=null;try{ss=a.selectionStart;se=a.selectionEnd}catch(e){}
-  $('#app').innerHTML=tab==='terima'?viewTerima():tab==='po'?viewPO():tab==='stok'?viewStok():viewRiwayat();
+  if(tab==='admin'&&!can('admin'))tab='terima';
+  $('#app').innerHTML=tab==='terima'?viewTerima():tab==='po'?viewPO():tab==='stok'?viewStok():tab==='akun'?viewAkun():tab==='admin'?viewAdmin():viewRiwayat();
   bindSign();
   if(id){const el=document.getElementById(id);if(el){el.focus({preventScroll:true});try{if(ss!=null)el.setSelectionRange(ss,se)}catch(e){}}}
 }
@@ -430,6 +529,22 @@ document.addEventListener('click',async e=>{
   else if(act==='savegrn')saveGRN();
   else if(act==='grn'){grnView=b.dataset.id;render();window.scrollTo(0,0)}
   else if(act==='back'){grnView=null;render()}
+  else if(act==='akun'){tab='akun';render();window.scrollTo(0,0)}
+  else if(act==='print')window.print();
+  else if(act==='csvstok')csvStok();
+  else if(act==='csvgrn')csvGRN();
+  else if(act==='gfilter'){grnFilter=b.dataset.f;render()}
+  else if(act==='approvegrn'){b.disabled=true;b.textContent='Menyimpan…';approveGRN(b.dataset.id)}
+  else if(act==='adminreload'){adminData=null;render()}
+  else if(act==='ustatus'){const sel=document.querySelector(`[data-urole="${CSS.escape(b.dataset.email)}"]`);adminUpdate(b.dataset.email,{status:b.dataset.s,...(sel&&b.dataset.s==='active'?{role:sel.value}:{})})}
+});
+document.addEventListener('submit',async e=>{
+  if(e.target.id!=='pwform')return;e.preventDefault();
+  const o=$('#pwold').value.trim(),n=$('#pwnew').value.trim(),n2=$('#pwnew2').value.trim();
+  if(n.length<8){toast('Kata sandi baru minimal 8 karakter');return}
+  if(n!==n2){toast('Kedua kata sandi baru tidak sama');return}
+  try{await window.gudangApi.changePassword(o,n);toast('Kata sandi sudah diganti');$('#pwform').reset()}
+  catch(err){toast(err.message||'Gagal mengganti kata sandi')}
 });
 document.addEventListener('keydown',e=>{if(e.target.id==='scan'&&e.key==='Enter'){e.preventDefault();const v=e.target.value;e.target.value='';scan(v)}});
 document.addEventListener('change',e=>{
@@ -438,6 +553,7 @@ document.addEventListener('change',e=>{
   else if(t.id==='mult'&&rx){rx.mult=Math.max(1,parseInt(t.value,10)||1)}
   else if(t.id==='sjfile'&&t.files?.length)aiReadSJ(t.files,null);
   else if(t.id==='inspfile'&&t.files?.length)aiInspect(t.files);
+  else if(t.dataset.urole)adminUpdate(t.dataset.urole,{role:t.value});
 });
 document.addEventListener('input',e=>{
   const t=e.target;

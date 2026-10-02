@@ -9,10 +9,24 @@ public/index.html       Aplikasi (frontend)
 public/login.html       Halaman masuk dan daftar akun
 public/claude-shim.js   Penghubung frontend ke backend sendiri
 api/ai.js               Proxy ke Gemini atau Anthropic API (kunci API aman di server)
-api/auth.js             Masuk, daftar, keluar (akun & sesi disimpan di Redis)
+api/auth.js             Masuk, daftar, keluar, ganti kata sandi (akun & sesi di Redis)
+api/admin.js            Kelola pengguna (setujui, peran, nonaktifkan) dan log audit
 api/data.js             Simpan/baca data di Upstash Redis
 lib/common.js           Cek sesi login + klien Redis
 ```
+
+## Peran pengguna
+
+| Peran | Bisa |
+|---|---|
+| Viewer | Melihat PO, stok, riwayat; bertanya ke Gudi |
+| Petugas | + Menerima barang. Penerimaan dengan selisih besar tersimpan sebagai **Ditahan** |
+| Supervisor | + Membuat PO, mengubah toleransi, menyetujui penerimaan yang ditahan |
+| Admin | + Menyetujui akun baru, mengubah peran, menonaktifkan akun, melihat log audit |
+
+Akun yang mendaftar sendiri berstatus **menunggu** sampai disetujui admin di tab **Admin**. Semua aturan peran dicek di server. Bukti penerimaan (GRN) tidak bisa diubah setelah disimpan, kecuali persetujuan supervisor untuk GRN yang ditahan. Setiap perubahan data tercatat di log audit (5.000 entri terakhir).
+
+Fitur lain: ekspor CSV stok dan riwayat penerimaan (format `;` untuk Excel Indonesia), cetak/PDF GRN, dan ganti kata sandi di menu **Akun**.
 
 ## Deploy ke Vercel
 

@@ -27,6 +27,7 @@
       try { msg = (await res.json()).error || ''; } catch (e) {}
       const code = res.status === 429 || res.status === 529 ? 'rate_limited'
         : res.status === 413 ? 'image_rejected'
+        : res.status === 403 ? 'forbidden'
         : res.status === 400 ? 'invalid_argument' : 'unavailable';
       throw { code, message: msg || 'HTTP ' + res.status };
     }
@@ -39,11 +40,28 @@
   }
 
   // ---------- user ----------
+  let meCache = null;
+  async function me() {
+    if (!meCache) {
+      try {
+        meCache = (await api('/api/auth', { method: 'POST', body: JSON.stringify({ action: 'me' }) })).user;
+        try { localStorage.setItem(USER_KEY, JSON.stringify(meCache)); } catch (e) {}
+      } catch (e) { meCache = getMe() || {}; }
+    }
+    return meCache;
+  }
   const user = {
-    async id() { return (getMe() || {}).email || null; },
-    async me() { return { name: (getMe() || {}).name || '', email: (getMe() || {}).email || '' }; },
+    async id() { return (await me()).email || null; },
+    async me() { const m = await me(); return { name: m.name || '', email: m.email || '', role: m.role || 'petugas' }; },
     async profiles(ids) { return api('/api/auth', { method: 'POST', body: JSON.stringify({ action: 'profiles', ids }) }); },
     logout,
+  };
+
+  // Dipakai halaman aplikasi untuk fitur akun dan admin.
+  window.gudangApi = {
+    changePassword: (oldPw, newPw) => api('/api/auth', { method: 'POST', body: JSON.stringify({ action: 'password', old: oldPw, new: newPw }) }),
+    adminList: () => api('/api/admin'),
+    adminUpdate: (email, patch) => api('/api/admin', { method: 'POST', body: JSON.stringify({ email, ...patch }) }),
   };
 
   // ---------- db ----------
