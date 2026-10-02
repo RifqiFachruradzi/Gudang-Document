@@ -39,8 +39,10 @@ input{font:inherit;color:var(--ink);background:var(--soft);border:1px solid var(
 input:focus-visible,button:focus-visible{outline:3px solid var(--accent);outline-offset:2px}
 .err{background:var(--bad-bg);color:var(--bad);border-radius:8px;padding:10px 12px;font-size:14px;margin:0 0 14px}
 .err[hidden],[hidden]{display:none}
-.pw{position:relative}.pw input{padding-right:76px}
-.pw button{position:absolute;right:6px;top:5px;min-height:36px;font:inherit;font-size:14px;font-weight:600;background:transparent;border:0;color:var(--ink);padding:4px 10px;cursor:pointer}
+.pw{position:relative}.pw input{padding-right:52px}
+.pw button{position:absolute;right:4px;top:3px;width:44px;height:40px;display:flex;align-items:center;justify-content:center;background:transparent;border:0;color:var(--muted);padding:0;cursor:pointer;border-radius:6px}
+.pw button svg{width:22px;height:22px;fill:none;stroke:currentColor;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
+.pw button[aria-pressed="true"]{color:var(--ink)}
 .switch{text-align:center;font-size:14px;color:var(--muted);margin:14px 0 0}
 .switch button{font:inherit;background:none;border:0;color:var(--ink);font-weight:600;text-decoration:underline;cursor:pointer;padding:4px}
 </style>
@@ -68,7 +70,7 @@ input:focus-visible,button:focus-visible{outline:3px solid var(--accent);outline
       <label for="email">Email</label>
       <input id="email" name="email" type="email" autocomplete="username" inputmode="email" autocapitalize="none" autocorrect="off" spellcheck="false" required>
       <label for="password">Kata sandi</label>
-      <div class="pw"><input id="password" name="password" type="password" autocomplete="current-password" autocapitalize="none" autocorrect="off" spellcheck="false" minlength="8" required><button type="button" id="show" aria-pressed="false">Lihat</button></div>
+      <div class="pw"><input id="password" name="password" type="password" autocomplete="current-password" autocapitalize="none" autocorrect="off" spellcheck="false" minlength="8" required><button type="button" id="show" aria-label="Tampilkan kata sandi" aria-pressed="false"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M2 12s3.6-7 10-7 10 7 10 7-3.6 7-10 7S2 12 2 12Z"/><circle cx="12" cy="12" r="3"/></svg></button></div>
       <div id="confirmbox" hidden>
         <label for="confirm">Ulangi kata sandi</label>
         <input id="confirm" name="confirm" type="password" autocomplete="new-password" autocapitalize="none" autocorrect="off" spellcheck="false" minlength="8">
@@ -83,6 +85,8 @@ input:focus-visible,button:focus-visible{outline:3px solid var(--accent);outline
   const $ = (s) => document.querySelector(s);
   try { if (localStorage.getItem('gudang-ai-token')) { location.replace('/'); return; } } catch (e) {}
 
+  const EYE = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M2 12s3.6-7 10-7 10 7 10 7-3.6 7-10 7S2 12 2 12Z"/><circle cx="12" cy="12" r="3"/></svg>';
+  const EYE_OFF = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M2 12s3.6-7 10-7 10 7 10 7-3.6 7-10 7S2 12 2 12Z"/><circle cx="12" cy="12" r="3"/><line x1="3" y1="3" x2="21" y2="21"/></svg>';
   let mode = 'login';
   function setMode(m) {
     mode = m;
@@ -106,7 +110,8 @@ input:focus-visible,button:focus-visible{outline:3px solid var(--accent);outline
   $('#show').onclick = () => {
     const on = $('#password').type === 'password';
     $('#password').type = $('#confirm').type = on ? 'text' : 'password';
-    $('#show').textContent = on ? 'Sembunyi' : 'Lihat';
+    $('#show').innerHTML = on ? EYE_OFF : EYE;
+    $('#show').setAttribute('aria-label', on ? 'Sembunyikan kata sandi' : 'Tampilkan kata sandi');
     $('#show').setAttribute('aria-pressed', String(on));
   };
 

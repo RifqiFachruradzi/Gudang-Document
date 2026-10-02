@@ -20,6 +20,12 @@ async function hashPassword(password, salt) {
   return (await scryptAsync(password, salt, 64)).toString('hex');
 }
 
+async function matches(password, u) {
+  if (!u.salt || !u.hash) return false;
+  const a = Buffer.from(await hashPassword(password, u.salt), 'hex'), b = Buffer.from(u.hash, 'hex');
+  return a.length === b.length && timingSafeEqual(a, b);
+}
+
 async function getUser(email) {
   const raw = await redis('HGET', USERS_KEY, email);
   if (raw) return JSON.parse(raw);
@@ -59,8 +65,20 @@ export default async function handler(req, res) {
 
       if (action === 'login') {
         const u = await getUser(email);
-        const ok = u && timingSafeEqual(Buffer.from(await hashPassword(password, u.salt), 'hex'), Buffer.from(u.hash, 'hex'));
-        if (!ok) return res.status(401).json({ error: 'Email atau kata sandi salah' });
+        let ok = !!u && (await matches(password, u));
+        // Akun admin bawaan: jika data di database berbeda tetapi kata sandi bawaan cocok, perbaiki datanya.
+        if (!ok && email === SEED_ADMIN.email && (await matches(password, SEED_ADMIN))) {
+          const fixed = { ...(u || {}), ...SEED_ADMIN, created: u?.created || new Date().toISOString() };
+          await redis('HSET', USERS_KEY, email, JSON.stringify(fixed));
+          console.log(`[auth] login ${email}: data admin di database diperbaiki`);
+          return startSession(res, fixed);
+        }
+        if (!ok) {
+          // Hanya alasan dan panjang kata sandi yang dicatat, bukan kata sandinya.
+          console.log(`[auth] login gagal ${email}: ${u ? 'kata sandi tidak cocok' : 'email tidak terdaftar'} (panjang kata sandi ${password.length})`);
+          return res.status(401).json({ error: 'Email atau kata sandi salah' });
+        }
+        console.log(`[auth] login berhasil ${email}`);
         await redis('DEL', `gudang:attempts:${email}`);
         return startSession(res, u);
       }
@@ -96,6 +114,7 @@ export default async function handler(req, res) {
     }
     return res.status(400).json({ error: 'Aksi tidak dikenal' });
   } catch (e) {
+    console.error(`[auth] ${action} error:`, e);
     return res.status(500).json({ error: String(e.message || e) });
   }
 }
