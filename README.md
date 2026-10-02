@@ -57,9 +57,9 @@ npm run build                # cek build produksi
 
 | Peran | Bisa |
 |---|---|
-| Viewer | Melihat PO, stok, riwayat; bertanya ke Gudi |
-| Petugas | + Menerima barang. Penerimaan dengan selisih besar tersimpan sebagai **Ditahan** |
-| Supervisor | + Membuat PO, mengubah toleransi, menyetujui penerimaan yang ditahan |
+| Viewer | Melihat semua data; bertanya ke Gudi |
+| Petugas | + Menerima barang, mencatat barang keluar, mengirim hitungan stok opname. Penerimaan dengan selisih besar tersimpan sebagai **Ditahan** |
+| Supervisor | + Kelola PO dan master data, mengubah toleransi, menyetujui penerimaan yang ditahan dan penyesuaian stok |
 | Admin | + Menyetujui akun baru, mengubah peran, menonaktifkan akun, melihat log audit |
 
 Akun yang mendaftar sendiri berstatus **menunggu** sampai disetujui admin. Semua aturan peran dicek di server.
