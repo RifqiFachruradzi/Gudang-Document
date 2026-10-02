@@ -63,25 +63,36 @@ async function gemini(res, messages, tools) {
     return { role: m.role === 'assistant' ? 'model' : 'user', parts };
   });
 
-  const model = process.env.GEMINI_MODEL || 'gemini-flash-latest';
-  const r = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${encodeURIComponent(model)}:generateContent`, {
-    method: 'POST',
-    headers: { 'x-goog-api-key': process.env.GEMINI_API_KEY, 'content-type': 'application/json' },
-    body: JSON.stringify({
-      contents,
-      generationConfig: { maxOutputTokens: 4096 },
-      ...(tools ? {
-        tools: [{
-          functionDeclarations: tools.map(t => {
-            const p = t.input_schema;
-            const hasProps = p && p.properties && Object.keys(p.properties).length;
-            return { name: t.name, description: t.description, ...(hasProps ? { parameters: p } : {}) };
-          }),
-        }],
-      } : {}),
-    }),
-  });
-  const j = await r.json();
+  const payload = {
+    contents,
+    generationConfig: { maxOutputTokens: 4096 },
+    ...(tools ? {
+      tools: [{
+        functionDeclarations: tools.map(t => {
+          const p = t.input_schema;
+          const hasProps = p && p.properties && Object.keys(p.properties).length;
+          return { name: t.name, description: t.description, ...(hasProps ? { parameters: p } : {}) };
+        }),
+      }],
+    } : {}),
+  };
+
+  // Model gratis kadang penuh (503) atau kena batas (429): coba ulang, lalu pindah ke model cadangan.
+  const models = [...new Set([process.env.GEMINI_MODEL || 'gemini-flash-latest', 'gemini-flash-lite-latest'])];
+  let r, j;
+  for (const model of models) {
+    for (let attempt = 0; attempt < 2; attempt++) {
+      r = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${encodeURIComponent(model)}:generateContent`, {
+        method: 'POST',
+        headers: { 'x-goog-api-key': process.env.GEMINI_API_KEY, 'content-type': 'application/json' },
+        body: JSON.stringify(payload),
+      });
+      j = await r.json().catch(() => ({}));
+      if (r.ok || ![429, 500, 503].includes(r.status)) break;
+      await new Promise(ok => setTimeout(ok, 1500));
+    }
+    if (r.ok || ![404, 429, 500, 503].includes(r.status)) break;
+  }
   if (!r.ok) return res.status(r.status).json({ error: j?.error?.message || 'Gagal memanggil AI' });
 
   const cand = (j.candidates || [])[0];
