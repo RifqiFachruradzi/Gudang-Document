@@ -495,7 +495,7 @@ PESAN PENGGUNA: ${text}`;
      execute(inp){const m=String(inp.menu);if(!['terima','po','stok','riwayat'].includes(m))throw new Error('menu tidak dikenal');tab=m;grnView=null;render();return'ok'}}];
   else opts.cache=false;
   try{const r=await sample(turns,opts);chat[idx].content=r.text||chat[idx].content||(chat[idx].charts.length?'':'(Tidak ada jawaban.)');if(r.truncated)chat[idx].content+='\n\n(Jawaban terpotong.)'}
-  catch(e){chat[idx].content=(e&&e.text?e.text+'\n\n':'')+(e?.code==='cancelled'?'(Dihentikan.)':e?.code==='not_granted'?'Gudi butuh izin memakai AI. Izinkan saat diminta, lalu coba lagi.':e?.code==='rate_limited'?'Gudi sedang sibuk. Coba lagi sebentar.':e?.code==='image_rejected'?'Foto tidak bisa dibaca. Coba foto lain (JPG/PNG).':'Maaf, Gudi gagal menjawab. Coba lagi.')}
+  catch(e){chat[idx].content=(e&&e.text?e.text+'\n\n':'')+(e?.code==='cancelled'?'(Dihentikan.)':e?.code==='not_granted'?'Gudi butuh izin memakai AI. Izinkan saat diminta, lalu coba lagi.':e?.code==='rate_limited'?'Gudi sedang sibuk. Coba lagi sebentar.':e?.code==='image_rejected'?'Foto tidak bisa dibaca. Coba foto lain (JPG/PNG).':'Maaf, Gudi gagal menjawab. Coba lagi.'+(e?.message?' (Detail: '+e.message+')':''))}
   bBusy=false;bCtl=null;renderChat();
 }
 function openBuddy(){$('#buddy').hidden=false;$('#fab').hidden=true;renderChat();$('#bq').focus()}
