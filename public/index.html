@@ -1,0 +1,517 @@
+<!doctype html>
+<html lang="id">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Gudang AI: penerimaan barang</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Barlow:wght@400;500;600&family=Barlow+Condensed:wght@500;600;700&display=swap" rel="stylesheet">
+<style>
+:root{
+  --bg:#E8ECEF;--panel:#FFFFFF;--ink:#15212B;--muted:#5A6873;--line:#C9D1D7;--soft:#F3F5F7;
+  --accent:#F2B705;--accent-ink:#2A2000;
+  --ok:#23784A;--ok-bg:#E1F2E8;--warn:#8A5800;--warn-bg:#FFF1CC;--bad:#B3261E;--bad-bg:#FBE3E1;
+  --body:"Barlow",system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;
+  --cond:"Barlow Condensed","Arial Narrow",system-ui,sans-serif;
+  box-sizing:border-box;
+  padding-top:env(safe-area-inset-top,0px);
+  padding-bottom:env(safe-area-inset-bottom,0px);
+}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){
+  --bg:#0F171D;--panel:#18232B;--ink:#E6ECF0;--muted:#93A3AE;--line:#2C3A44;--soft:#1E2A33;
+  --ok:#6FD39A;--ok-bg:#173526;--warn:#F5C451;--warn-bg:#3A2E0F;--bad:#FF8A80;--bad-bg:#3E1A18;}}
+:root[data-theme="dark"]{
+  --bg:#0F171D;--panel:#18232B;--ink:#E6ECF0;--muted:#93A3AE;--line:#2C3A44;--soft:#1E2A33;
+  --ok:#6FD39A;--ok-bg:#173526;--warn:#F5C451;--warn-bg:#3A2E0F;--bad:#FF8A80;--bad-bg:#3E1A18;}
+*,*::before,*::after{box-sizing:inherit}
+html{scroll-padding-top:env(safe-area-inset-top,0px)}
+body{margin:0;background:var(--bg);color:var(--ink);font-family:var(--body);font-size:16px;line-height:1.5;padding-bottom:84px}
+img{max-width:100%}
+.stripe{height:10px;background:repeating-linear-gradient(-45deg,var(--accent) 0 14px,#15212B 14px 28px)}
+.top .bar{max-width:760px;margin:0 auto;padding:16px 18px 6px;display:flex;justify-content:space-between;align-items:flex-end;gap:12px}
+h1{font-family:var(--cond);font-weight:700;font-size:30px;line-height:1;margin:0;letter-spacing:.2px}
+h2{font-family:var(--cond);font-weight:600;font-size:22px;margin:0 0 10px}
+h3{font-family:var(--cond);font-weight:600;font-size:18px;margin:0 0 6px}
+.mode{font-size:13px;color:var(--muted);margin:4px 0 0}
+main{max-width:760px;margin:0 auto;padding:10px 14px 24px}
+.card{background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:16px;margin:0 0 14px}
+.muted{color:var(--muted)}.small{font-size:14px}
+.row{display:flex;gap:10px;align-items:center;flex-wrap:wrap}
+.between{justify-content:space-between}
+button,.btn{font:inherit;font-weight:600;border:1px solid var(--line);background:var(--panel);color:var(--ink);border-radius:8px;padding:10px 14px;cursor:pointer;min-height:44px}
+button.primary{background:var(--accent);border-color:var(--accent);color:var(--accent-ink)}
+button.ghost{background:transparent}
+button.danger{color:var(--bad)}
+button:disabled{opacity:.5;cursor:not-allowed}
+button:focus-visible,input:focus-visible,textarea:focus-visible,select:focus-visible,label.file:focus-within{outline:3px solid var(--accent);outline-offset:2px}
+input,textarea,select{font:inherit;color:var(--ink);background:var(--soft);border:1px solid var(--line);border-radius:8px;padding:10px 12px;min-height:44px;width:100%}
+textarea{min-height:90px}
+label.f{display:block;font-size:14px;color:var(--muted);margin:0 0 4px}
+.po{display:block;width:100%;text-align:left;font-weight:400;padding:14px;margin:0 0 10px}
+.po b{font-family:var(--cond);font-size:20px;font-weight:600}
+.chip{display:inline-block;font-size:13px;font-weight:600;border-radius:99px;padding:2px 10px;border:1px solid transparent}
+.c-ok{background:var(--ok-bg);color:var(--ok)}.c-warn{background:var(--warn-bg);color:var(--warn)}.c-bad{background:var(--bad-bg);color:var(--bad)}.c-n{background:var(--soft);color:var(--muted);border-color:var(--line)}
+.scanbox{display:flex;gap:8px}
+.scanbox input#scan{font-size:20px;font-family:var(--cond);letter-spacing:.5px}
+.scanbox input#mult{width:78px;flex:none;text-align:center}
+.wrap{overflow-x:auto}
+table{border-collapse:collapse;width:100%;min-width:520px}
+th{font-size:13px;color:var(--muted);font-weight:500;text-align:left;padding:6px 6px;border-bottom:1px solid var(--line)}
+td{padding:8px 6px;border-bottom:1px solid var(--line);vertical-align:top}
+td.num{font-family:var(--cond);font-size:22px;font-weight:600;line-height:1.1}
+td input{width:70px;min-height:38px;padding:6px 8px;font-family:var(--cond);font-size:18px}
+tr.flash td{background:var(--warn-bg)}
+.stamp{border:3px solid currentColor;border-radius:10px;padding:12px 16px;font-family:var(--cond);font-weight:700;font-size:28px;line-height:1.1}
+.stamp small{display:block;font-family:var(--body);font-weight:500;font-size:14px;margin-top:4px}
+.s-ok{color:var(--ok);background:var(--ok-bg)}.s-warn{color:var(--warn);background:var(--warn-bg)}.s-bad{color:var(--bad);background:var(--bad-bg)}
+.sig{width:100%;height:150px;background:#fff;border:1px dashed var(--muted);border-radius:8px;touch-action:none;display:block}
+label.file{display:inline-flex;align-items:center;justify-content:center;font-weight:600;border:1px solid var(--line);border-radius:8px;padding:10px 14px;min-height:44px;cursor:pointer;background:var(--panel)}
+label.file input{position:absolute;opacity:0;width:1px;height:1px}
+.ai{border-left:4px solid var(--accent);border-radius:0;background:var(--soft);padding:10px 12px;margin-top:10px;font-size:15px}
+.ai ul{margin:6px 0 0;padding-left:18px}
+.tabs{position:fixed;left:0;right:0;bottom:0;background:var(--panel);border-top:1px solid var(--line);display:flex;justify-content:center;padding-bottom:env(safe-area-inset-bottom,0px);z-index:5}
+.tabs button{flex:1;max-width:190px;border:0;border-radius:0;background:transparent;font-family:var(--cond);font-size:18px;padding:12px 4px;border-top:4px solid transparent;color:var(--muted)}
+.tabs button[aria-current="true"]{color:var(--ink);border-top-color:var(--accent)}
+#toast{position:fixed;left:50%;transform:translateX(-50%);bottom:calc(80px + env(safe-area-inset-bottom,0px));background:var(--ink);color:var(--bg);padding:10px 16px;border-radius:8px;font-weight:500;max-width:90vw;opacity:0;pointer-events:none;transition:opacity .2s;z-index:9}
+#toast.on{opacity:1}
+.itemrow{display:grid;grid-template-columns:1fr 1fr;gap:8px;border-top:1px solid var(--line);padding-top:10px;margin-top:10px}
+.itemrow .full{grid-column:1/-1}
+.stock{display:flex;justify-content:space-between;gap:12px;padding:12px 0;border-bottom:1px solid var(--line)}
+.stock:last-child{border-bottom:0}
+.big{font-family:var(--cond);font-size:28px;font-weight:600;line-height:1}
+.steps{counter-reset:s}
+.step h3::before{counter-increment:s;content:counter(s) ". "}
+
+.fab{position:fixed;right:16px;bottom:calc(76px + env(safe-area-inset-bottom,0px));width:62px;height:62px;border-radius:50%;padding:0;background:var(--ink);border:3px solid var(--accent);display:flex;align-items:center;justify-content:center;z-index:7;box-shadow:0 4px 14px rgba(0,0,0,.25)}
+.fab svg{width:44px;height:44px}
+.buddy{position:fixed;z-index:8;right:16px;bottom:calc(16px + env(safe-area-inset-bottom,0px));width:400px;max-width:calc(100vw - 32px);height:min(640px,calc(100vh - 40px - env(safe-area-inset-top,0px) - env(safe-area-inset-bottom,0px)));background:var(--panel);border:1px solid var(--line);border-radius:14px;display:flex;flex-direction:column;overflow:hidden;box-shadow:0 12px 40px rgba(0,0,0,.3)}
+.buddy[hidden]{display:none}
+@media (max-width:560px){.buddy{right:0;left:0;bottom:0;width:100%;max-width:100%;height:calc(100% - 40px - env(safe-area-inset-top,0px));border-radius:16px 16px 0 0;padding-bottom:env(safe-area-inset-bottom,0px)}}
+.bhead{background:var(--ink);color:var(--bg);display:flex;align-items:center;gap:10px;padding:10px 10px 10px 14px}
+.bhead .av{width:40px;height:40px;border-radius:50%;background:var(--accent);display:flex;align-items:center;justify-content:center;flex:none}
+.bhead .av svg{width:32px;height:32px}
+.bhead b{font-family:var(--cond);font-size:20px;display:block;line-height:1}
+.bhead span{font-size:13px;opacity:.75}
+.bhead button{background:transparent;border:0;color:var(--bg);min-height:40px;padding:6px 10px;font-size:14px}
+.bstripe{height:6px;background:repeating-linear-gradient(-45deg,var(--accent) 0 10px,#15212B 10px 20px)}
+.bbody{flex:1;overflow-y:auto;padding:14px}
+.hello{text-align:center;padding:8px 6px 4px}
+.hello svg{width:120px;height:120px}
+.hello h3{font-size:22px;margin:6px 0 4px}
+.sugg{display:block;width:100%;text-align:left;font-weight:500;margin:0 0 8px;color:var(--ink);background:var(--soft)}
+.msg{margin:0 0 12px;max-width:88%;padding:10px 12px;border-radius:12px;font-size:15px;line-height:1.5;overflow-wrap:anywhere}
+.msg.u{margin-left:auto;background:var(--accent);color:var(--accent-ink);border-bottom-right-radius:4px}
+.msg.a{background:var(--soft);border:1px solid var(--line);border-bottom-left-radius:4px}
+.msg ul{margin:4px 0;padding-left:18px}.msg p{margin:0 0 6px}.msg p:last-child{margin:0}
+.msg .att{font-size:13px;opacity:.8;display:block;margin-top:4px}
+.chart{margin-top:8px;background:var(--panel);border:1px solid var(--line);border-radius:8px;padding:10px}
+.chart h4{font-family:var(--cond);font-size:16px;margin:0 0 8px;font-weight:600}
+.bar{display:grid;grid-template-columns:minmax(70px,38%) 1fr auto;gap:8px;align-items:center;font-size:13px;margin:4px 0}
+.bar i{display:block;height:14px;background:var(--accent);border-radius:3px}
+.bfoot{border-top:1px solid var(--line);padding:10px}
+.bin{border:1px solid var(--line);border-radius:12px;background:var(--soft);padding:6px}
+.bin textarea{border:0;background:transparent;min-height:44px;max-height:120px;resize:none;padding:6px 8px}
+.bin textarea:focus-visible{outline:none}
+.bin:focus-within{outline:3px solid var(--accent);outline-offset:1px}
+.bin .row{justify-content:space-between}
+.bin label.file,.bin button{min-height:40px;padding:6px 12px;font-size:14px}
+.bnote{font-size:12px;color:var(--muted);text-align:center;margin:6px 0 0}
+.dots::after{content:"…"}
+@media (prefers-reduced-motion:reduce){#toast{transition:none}}
+</style>
+</head>
+<body>
+<header class="top">
+  <div class="stripe" aria-hidden="true"></div>
+  <div class="bar">
+    <div><h1>Gudang tanpa kertas</h1><p class="mode" id="mode">Menyiapkan data…</p></div>
+  </div>
+</header>
+<main id="app" aria-live="polite"></main>
+<nav class="tabs" aria-label="Menu utama">
+  <button data-tab="terima">Terima barang</button>
+  <button data-tab="po">PO</button>
+  <button data-tab="stok">Stok</button>
+  <button data-tab="riwayat">Riwayat</button>
+</nav>
+<button class="fab" id="fab" aria-label="Buka Gudi, asisten AI gudang"><svg viewBox="0 0 64 64" aria-hidden="true"><line x1="32" y1="6" x2="32" y2="14" stroke="#15212B" stroke-width="2.5"/><circle cx="32" cy="6" r="3.5" fill="#F2B705" stroke="#15212B" stroke-width="2"/><path d="M10 22 L32 14 L54 22 L54 50 L32 58 L10 50 Z" fill="#C8955A" stroke="#15212B" stroke-width="2.5" stroke-linejoin="round"/><path d="M10 22 L32 30 L54 22" fill="none" stroke="#15212B" stroke-width="2.5" stroke-linejoin="round"/><path d="M32 30 L32 58" stroke="#15212B" stroke-width="2"/><rect x="14" y="34" width="36" height="8" fill="#F2B705" transform="skewY(0)"/><circle cx="23" cy="45" r="3" fill="#15212B"/><circle cx="41" cy="45" r="3" fill="#15212B"/><path d="M27 51 Q32 54 37 51" fill="none" stroke="#15212B" stroke-width="2" stroke-linecap="round"/></svg></button>
+<section class="buddy" id="buddy" hidden aria-label="Gudi, asisten AI gudang">
+  <div class="bhead"><div class="av"><svg viewBox="0 0 64 64" aria-hidden="true"><line x1="32" y1="6" x2="32" y2="14" stroke="#15212B" stroke-width="2.5"/><circle cx="32" cy="6" r="3.5" fill="#F2B705" stroke="#15212B" stroke-width="2"/><path d="M10 22 L32 14 L54 22 L54 50 L32 58 L10 50 Z" fill="#C8955A" stroke="#15212B" stroke-width="2.5" stroke-linejoin="round"/><path d="M10 22 L32 30 L54 22" fill="none" stroke="#15212B" stroke-width="2.5" stroke-linejoin="round"/><path d="M32 30 L32 58" stroke="#15212B" stroke-width="2"/><rect x="14" y="34" width="36" height="8" fill="#F2B705" transform="skewY(0)"/><circle cx="23" cy="45" r="3" fill="#15212B"/><circle cx="41" cy="45" r="3" fill="#15212B"/><path d="M27 51 Q32 54 37 51" fill="none" stroke="#15212B" stroke-width="2" stroke-linecap="round"/></svg></div><div style="flex:1"><b>Gudi</b><span>Asisten AI gudang Anda</span></div><button data-b="new" aria-label="Mulai obrolan baru">Baru</button><button data-b="close" aria-label="Tutup">Tutup</button></div>
+  <div class="bstripe" aria-hidden="true"></div>
+  <div class="bbody" id="bbody" aria-live="polite"></div>
+  <div class="bfoot"><div class="bin"><textarea id="bq" rows="1" placeholder="Tanya Gudi apa saja…" aria-label="Pesan untuk Gudi"></textarea>
+  <div class="row"><span id="battach"></span><span class="row" style="gap:6px"><span id="bimg"></span><button class="primary" data-b="send" id="bsend">Kirim</button></span></div></div>
+  <p class="bnote">Gudi bisa keliru. Cek ulang angka penting sebelum mengambil keputusan.</p></div>
+</section>
+<div id="toast" role="status"></div>
+<script src="/claude-shim.js"></script>
+<script>
+const $=s=>document.querySelector(s);
+const esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const fmt=n=>new Intl.NumberFormat('id-ID').format(n||0);
+const clone=o=>JSON.parse(JSON.stringify(o||{}));
+const COLS=['pos','stok','grn','config'];
+const state={pos:{},stok:{},grn:{},config:{}};
+let ready=false,backend=null,db=null,user=null,uid=null,sample=null,caps=null,readOnly=false;
+let tab='terima',rx=null,poDraft=null,grnView=null,stokQ='',ai={busy:null};
+const names={};
+
+function toast(m){const t=$('#toast');t.textContent=m;t.classList.add('on');clearTimeout(toast.t);toast.t=setTimeout(()=>t.classList.remove('on'),2800)}
+const tol=()=>Number(state.config.settings?.toleransi??2);
+
+async function init(){
+  try{db=window.claude&&window.claude.use?await window.claude.use('db'):null}catch(e){db=null}
+  if(db){
+    backend='db';let n=0;
+    COLS.forEach(c=>db.collection(c).onSnapshot(s=>{const o={};s.docs.forEach(d=>o[d.id]=d.data());state[c]=o;if(!ready&&++n>=COLS.length)ready=true;render()},e=>toast('Sinkronisasi data berhenti ('+e.code+'). Muat ulang halaman.')));
+    $('#mode').textContent='Data tersimpan bersama untuk tim gudang';
+  }else{
+    backend='local';
+    try{const s=JSON.parse(localStorage.getItem('gudang-ai-v1')||'null');if(s)COLS.forEach(c=>state[c]=s[c]||{})}catch(e){}
+    ready=true;$('#mode').textContent='Mode lokal: data hanya tersimpan di perangkat ini';render();
+  }
+  try{user=window.claude?await window.claude.use('user'):null;uid=user?await user.id():null}catch(e){}
+  try{sample=window.claude?await window.claude.use('sample'):null;caps=sample?await sample.limits().catch(()=>null):null}catch(e){}
+  try{if(user)meName=(await user.me()).name||''}catch(e){}
+  render();if(!$('#buddy').hidden)renderChat();
+}
+async function put(col,id,data){
+  if(backend==='db'){
+    try{await db.collection(col).doc(id).set(data)}
+    catch(e){if(e&&e.code==='invalid_argument'){readOnly=true;render();throw new Error('Akun Anda hanya bisa melihat data, tidak bisa menyimpan.')}
+      if(e&&e.code==='quota_exceeded')throw new Error('Penyimpanan penuh. Hapus data lama lalu coba lagi.');throw new Error('Gagal menyimpan ('+(e&&e.code||'error')+'). Coba lagi.')}
+  }else{state[col][id]=data;try{localStorage.setItem('gudang-ai-v1',JSON.stringify(state))}catch(e){}render()}
+}
+
+function supplierRisk(sup){
+  const g=Object.values(state.grn).filter(x=>x.supplier===sup);if(g.length<2)return null;
+  const r=g.filter(x=>x.hasil!=='Diterima').length/g.length;
+  return{r,n:g.length,level:r>=.5?'tinggi':r>=.25?'sedang':'rendah'};
+}
+function riskChip(sup){const k=supplierRisk(sup);if(!k)return'<span class="chip c-n">Riwayat supplier belum cukup</span>';
+  const cls=k.level==='tinggi'?'c-bad':k.level==='sedang'?'c-warn':'c-ok';
+  return`<span class="chip ${cls}">Risiko supplier ${k.level} (${Math.round(k.r*100)}% dari ${k.n} kiriman bermasalah)</span>`}
+
+function evaluate(){
+  const po=state.pos[rx.poId],t=tol();
+  const rows=po.items.map(it=>{
+    const f=Number(rx.fisik[it.sku]||0),r=Math.min(Number(rx.rusak[it.sku]||0),f),sjRaw=rx.sj[it.sku];
+    const sj=sjRaw===''||sjRaw==null?null:Number(sjRaw);const baik=f-r,diff=baik-it.qty;
+    const pct=it.qty?Math.abs(diff)/it.qty*100:0;const sjBeda=sj!=null&&sj!==f;
+    const sjPct=sjBeda?Math.abs(sj-f)/Math.max(f,1)*100:0;const notes=[];
+    if(diff<0)notes.push('Kurang '+fmt(-diff));if(diff>0)notes.push('Lebih '+fmt(diff));
+    if(r)notes.push(fmt(r)+' rusak');if(sjBeda)notes.push('Surat jalan '+fmt(sj)+', fisik '+fmt(f));
+    let status;
+    if(f===0)status='belum';
+    else if(diff===0&&!sjBeda&&r===0)status='sesuai';
+    else if(pct<=t&&sjPct<=t)status='catatan';
+    else status='tahan';
+    return{sku:it.sku,nama:it.nama,satuan:it.satuan,po:it.qty,sj,fisik:f,rusak:r,baik,status,notes};
+  });
+  const unk=rx.unknown.length;let hasil;
+  if(rows.every(r=>r.status==='sesuai')&&!unk)hasil='Diterima';
+  else if(rows.some(r=>r.status==='tahan'||r.status==='belum')||unk)hasil='Ditahan';
+  else hasil='Diterima dengan catatan';
+  return{rows,hasil,unk};
+}
+const stChip={sesuai:'<span class="chip c-ok">Sesuai</span>',catatan:'<span class="chip c-warn">Dalam toleransi</span>',tahan:'<span class="chip c-bad">Ditahan</span>',belum:'<span class="chip c-n">Belum discan</span>'};
+
+function startRx(id){rx={poId:id,sj:{},fisik:{},rusak:{},unknown:[],sjNo:'',pengirim:'',catatan:'',approved:false,sign:null,aiSJ:null,inspeksi:[],last:null};tab='terima';render();setTimeout(()=>$('#scan')?.focus(),50)}
+function scan(raw){
+  const parts=raw.trim();if(!parts)return;const po=state.pos[rx.poId];
+  const m=Math.max(1,parseInt($('#mult')?.value||'1',10)||1);
+  const it=po.items.find(i=>String(i.barcode)===parts||i.sku.toLowerCase()===parts.toLowerCase());
+  if(it){rx.fisik[it.sku]=(Number(rx.fisik[it.sku])||0)+m;rx.last=it.sku;toast('+'+m+' '+it.nama)}
+  else{rx.unknown.push(parts);toast('Kode '+parts+' tidak ada di PO ini')}
+  render();
+}
+
+function viewTerima(){
+  if(!rx){
+    const open=Object.entries(state.pos).filter(([,p])=>p.status!=='Diterima').sort((a,b)=>String(a[1].tanggal).localeCompare(String(b[1].tanggal)));
+    if(!open.length)return`<div class="card"><h2>Belum ada PO yang menunggu</h2><p class="muted">Buat PO dulu, lalu barang yang datang bisa diverifikasi di sini.</p><button class="primary" data-act="newpo">Buat PO</button></div>`;
+    return`<h2>Pilih PO untuk kiriman yang datang</h2>`+open.map(([id,p])=>`<button class="po card" data-act="start" data-id="${esc(id)}">
+      <div class="row between"><b>${esc(p.no)}</b>${p.status==='Ditahan'?'<span class="chip c-bad">Ditahan</span>':'<span class="chip c-n">Menunggu</span>'}</div>
+      <div>${esc(p.supplier)}</div><div class="small muted">${p.items.length} jenis barang, ${fmt(p.items.reduce((a,i)=>a+Number(i.qty),0))} unit, dipesan ${esc(p.tanggal||'')}</div>
+      <div style="margin-top:6px">${riskChip(p.supplier)}</div></button>`).join('');
+  }
+  const po=state.pos[rx.poId];if(!po){rx=null;return viewTerima()}
+  const ev=evaluate(),t=tol();
+  const canImg=!!caps?.images,canAI=!!sample;
+  const stampCls=ev.hasil==='Diterima'?'s-ok':ev.hasil==='Ditahan'?'s-bad':'s-warn';
+  const stampSub=ev.hasil==='Diterima'?'Semua barang cocok dengan PO dan surat jalan.':ev.hasil==='Ditahan'?'Ada selisih di atas toleransi '+t+'%, barang rusak, atau barang belum discan. Perlu persetujuan supervisor.':'Ada selisih kecil dalam toleransi '+t+'%. Barang bisa diterima dengan catatan.';
+  return`
+  <div class="row between" style="margin-bottom:10px"><div><h2 style="margin:0">${esc(po.no)}</h2><div class="muted small">${esc(po.supplier)}</div></div><button class="ghost" data-act="cancelrx">Batal</button></div>
+  <div style="margin-bottom:12px">${riskChip(po.supplier)}</div>
+  <div class="steps">
+  <section class="card step"><h3>Dokumen dari supplier</h3>
+    <p class="small muted" style="margin:0 0 10px">${canAI?'AI membaca surat jalan dan mencocokkan tiap baris ke barang di PO, walau namanya ditulis berbeda.':'Isi jumlah sesuai surat jalan di tabel di bawah.'}</p>
+    <div class="row">
+      ${canAI&&canImg?`<label class="file">Foto surat jalan<input type="file" accept="${esc(caps.images.mediaTypes.join(','))}" capture="environment" id="sjfile"></label>`:''}
+      ${canAI?`<button data-act="sjtextshow">Tempel teks surat jalan</button>`:''}
+    </div>
+    ${rx.showSJText?`<div style="margin-top:10px"><label class="f" for="sjtext">Teks surat jalan atau email dari supplier</label><textarea id="sjtext" placeholder="Contoh: Beras Pandan Wangi 5kg - 40 sak">${esc(rx.sjText||'')}</textarea><button class="primary" style="margin-top:8px" data-act="sjtext">Baca dengan AI</button></div>`:''}
+    ${ai.busy==='sj'?'<div class="ai">AI sedang membaca surat jalan…</div>':''}
+    ${rx.aiSJ?`<div class="ai"><b>Hasil baca AI${rx.aiSJ.nomor_surat_jalan?' untuk surat jalan '+esc(rx.aiSJ.nomor_surat_jalan):''}</b><ul>${(rx.aiSJ.baris||[]).map(b=>`<li>${esc(b.teks_asli)} → ${b.sku?esc((po.items.find(i=>i.sku===b.sku)||{}).nama||b.sku)+', '+fmt(b.qty):'<b>tidak ada di PO</b>'} <span class="muted">(${esc(b.yakin||'')}: ${esc(b.alasan||'')})</span></li>`).join('')}</ul>${rx.aiSJ.catatan?`<p class="small" style="margin:6px 0 0">${esc(rx.aiSJ.catatan)}</p>`:''}</div>`:''}
+    <div style="margin-top:10px"><label class="f" for="sjno">Nomor surat jalan</label><input id="sjno" data-bind="sjNo" value="${esc(rx.sjNo)}"></div>
+  </section>
+  <section class="card step"><h3>Scan barang fisik</h3>
+    <p class="small muted" style="margin:0 0 10px">Arahkan scanner barcode ke kolom ini, atau ketik kode barcode/SKU lalu tekan Enter. Isi kolom kanan untuk scan per karton.</p>
+    <div class="scanbox"><input id="scan" inputmode="text" autocomplete="off" placeholder="Scan barcode atau SKU" aria-label="Kode barcode atau SKU"><input id="mult" type="number" min="1" value="${esc(rx.mult||1)}" aria-label="Jumlah per scan"></div>
+    ${rx.unknown.length?`<div class="ai"><b>Kode di luar PO:</b> ${rx.unknown.map(esc).join(', ')} <button class="ghost small" data-act="clearunk">Hapus</button></div>`:''}
+    <div class="row" style="margin-top:10px">
+      ${canAI&&canImg?`<label class="file">Cek kondisi dengan foto<input type="file" accept="${esc(caps.images.mediaTypes.join(','))}" capture="environment" id="inspfile"></label>`:''}
+    </div>
+    ${ai.busy==='foto'?'<div class="ai">AI sedang memeriksa foto barang…</div>':''}
+    ${rx.inspeksi.map(x=>`<div class="ai"><span class="chip ${x.kondisi==='baik'?'c-ok':x.kondisi==='rusak'?'c-bad':'c-warn'}">Kondisi ${esc(x.kondisi)}</span>${x.temuan?.length?`<ul>${x.temuan.map(s=>`<li>${esc(s)}</li>`).join('')}</ul>`:''}${x.saran?`<p class="small" style="margin:6px 0 0">${esc(x.saran)}</p>`:''}</div>`).join('')}
+  </section>
+  <section class="card step"><h3>Pencocokan otomatis</h3>
+    <div class="wrap"><table><thead><tr><th>Barang</th><th>PO</th><th>Surat jalan</th><th>Fisik</th><th>Rusak</th><th>Status</th></tr></thead><tbody>
+    ${ev.rows.map(r=>`<tr class="${rx.last===r.sku?'flash':''}"><td><b>${esc(r.nama)}</b><div class="small muted">${esc(r.sku)}, ${esc(r.satuan)}</div>${r.notes.length?`<div class="small">${esc(r.notes.join('. '))}</div>`:''}</td>
+      <td class="num">${fmt(r.po)}</td>
+      <td><input type="number" min="0" data-q="sj" data-sku="${esc(r.sku)}" id="sj-${esc(r.sku)}" value="${r.sj??''}" aria-label="Jumlah surat jalan ${esc(r.nama)}"></td>
+      <td><input type="number" min="0" data-q="fisik" data-sku="${esc(r.sku)}" id="fs-${esc(r.sku)}" value="${r.fisik}" aria-label="Jumlah fisik ${esc(r.nama)}"></td>
+      <td><input type="number" min="0" data-q="rusak" data-sku="${esc(r.sku)}" id="rs-${esc(r.sku)}" value="${r.rusak}" aria-label="Jumlah rusak ${esc(r.nama)}"></td>
+      <td>${stChip[r.status]}</td></tr>`).join('')}
+    </tbody></table></div>
+    <div class="stamp ${stampCls}" style="margin-top:14px">${esc(ev.hasil)}<small>${esc(stampSub)}</small></div>
+    ${ev.hasil==='Ditahan'?`<label class="row" style="margin-top:12px;gap:8px"><input type="checkbox" id="appr" data-act="appr" ${rx.approved?'checked':''} style="width:22px;min-height:22px"> Disetujui supervisor, barang tetap diterima</label>`:''}
+  </section>
+  <section class="card step"><h3>Tanda tangan digital</h3>
+    <div class="row" style="align-items:flex-start"><div style="flex:1;min-width:200px"><label class="f" for="pengirim">Nama pengirim / sopir</label><input id="pengirim" data-bind="pengirim" value="${esc(rx.pengirim)}"></div></div>
+    <p class="small muted" style="margin:10px 0 6px">Minta pengirim tanda tangan di kotak ini.</p>
+    <canvas id="sign" class="sig" width="700" height="180" aria-label="Kotak tanda tangan"></canvas>
+    <button class="ghost small" style="margin-top:6px" data-act="clearsign">Hapus tanda tangan</button>
+    <div style="margin-top:10px"><label class="f" for="catatan">Catatan</label><textarea id="catatan" data-bind="catatan">${esc(rx.catatan)}</textarea></div>
+  </section>
+  </div>
+  ${readOnly?'<p class="muted">Akun Anda hanya bisa melihat, tidak bisa menyimpan penerimaan.</p>':`<button class="primary" style="width:100%;font-size:18px" data-act="savegrn">Simpan penerimaan</button>`}`;
+}
+
+function viewPO(){
+  const list=Object.entries(state.pos).sort((a,b)=>String(b[1].tanggal).localeCompare(String(a[1].tanggal)));
+  let h=`<div class="card"><h2>Aturan verifikasi</h2><label class="f" for="tol">Toleransi selisih jumlah (%)</label><div class="row"><input id="tol" type="number" min="0" max="50" value="${tol()}" style="max-width:120px"><button data-act="savetol">Simpan</button></div><p class="small muted" style="margin:8px 0 0">Selisih di bawah angka ini diterima dengan catatan. Di atasnya, barang ditahan untuk persetujuan supervisor.</p></div>`;
+  if(poDraft){
+    h+=`<div class="card"><h2>PO baru</h2>
+    <label class="f" for="pno">Nomor PO</label><input id="pno" data-d="no" value="${esc(poDraft.no)}">
+    <label class="f" for="psup" style="margin-top:8px">Supplier</label><input id="psup" data-d="supplier" value="${esc(poDraft.supplier)}">
+    ${poDraft.items.map((it,i)=>`<div class="itemrow"><div><label class="f">SKU</label><input data-di="${i}" data-k="sku" value="${esc(it.sku)}"></div><div><label class="f">Barcode</label><input data-di="${i}" data-k="barcode" value="${esc(it.barcode)}" inputmode="numeric"></div><div class="full"><label class="f">Nama barang</label><input data-di="${i}" data-k="nama" value="${esc(it.nama)}"></div><div><label class="f">Jumlah</label><input type="number" min="1" data-di="${i}" data-k="qty" value="${esc(it.qty)}"></div><div><label class="f">Satuan</label><input data-di="${i}" data-k="satuan" value="${esc(it.satuan)}"></div>${poDraft.items.length>1?`<button class="ghost danger full" data-act="delitem" data-i="${i}">Hapus barang ini</button>`:''}</div>`).join('')}
+    <div class="row" style="margin-top:12px"><button data-act="additem">Tambah barang</button><button class="primary" data-act="savepo">Simpan PO</button><button class="ghost" data-act="cancelpo">Batal</button></div></div>`;
+  }else h+=`<button class="primary" style="margin-bottom:14px" data-act="newpo" ${readOnly?'disabled':''}>Buat PO</button>`;
+  if(!list.length)h+=`<p class="muted">Belum ada PO.</p>`;
+  h+=list.map(([id,p])=>`<div class="card"><div class="row between"><h3 style="margin:0">${esc(p.no)}</h3><span class="chip ${p.status==='Diterima'?'c-ok':p.status==='Ditahan'?'c-bad':'c-n'}">${esc(p.status)}</span></div><div>${esc(p.supplier)}</div><div class="small muted">${esc(p.tanggal||'')}</div><ul class="small" style="margin:8px 0 0;padding-left:18px">${p.items.map(i=>`<li>${esc(i.nama)}: ${fmt(i.qty)} ${esc(i.satuan)}</li>`).join('')}</ul>${p.status!=='Diterima'?`<button style="margin-top:10px" data-act="start" data-id="${esc(id)}">Terima barang</button>`:''}</div>`).join('');
+  return h;
+}
+
+function viewStok(){
+  const q=stokQ.toLowerCase();
+  const list=Object.values(state.stok).filter(s=>!q||(s.nama+s.sku+s.lokasi).toLowerCase().includes(q)).sort((a,b)=>String(a.lokasi).localeCompare(String(b.lokasi)));
+  return`<h2>Stok real-time</h2><input id="stokq" placeholder="Cari nama, SKU, atau lokasi rak" value="${esc(stokQ)}" aria-label="Cari stok" style="margin-bottom:12px">
+  <div class="card">${list.length?list.map(s=>`<div class="stock"><div><b>${esc(s.nama)}</b><div class="small muted">${esc(s.sku)}, rak ${esc(s.lokasi||'-')}</div><div class="small muted">Diperbarui ${s.update?new Date(s.update).toLocaleString('id-ID'):'-'}</div></div><div style="text-align:right"><div class="big">${fmt(s.qty)}</div><div class="small muted">${esc(s.satuan)}</div></div></div>`).join(''):`<p class="muted" style="margin:0">${q?'Tidak ada barang yang cocok.':'Stok akan muncul setelah penerimaan pertama disimpan.'}</p>`}</div>`;
+}
+
+function viewRiwayat(){
+  const list=Object.values(state.grn).sort((a,b)=>String(b.waktu).localeCompare(String(a.waktu)));
+  resolveNames(list.map(g=>g.petugas).filter(Boolean));
+  if(grnView&&state.grn[grnView]){
+    const g=state.grn[grnView];const cls=g.keputusan.startsWith('Diterima')?(g.hasil==='Diterima'?'s-ok':'s-warn'):'s-bad';
+    return`<button class="ghost" data-act="back" style="margin-bottom:10px">Kembali ke riwayat</button>
+    <div class="card"><h2>${esc(g.no)}</h2><p class="small muted" style="margin:0 0 10px">${esc(g.poNo)}, ${esc(g.supplier)}<br>${new Date(g.waktu).toLocaleString('id-ID')}${g.sjNo?', surat jalan '+esc(g.sjNo):''}<br>Petugas: ${esc(names[g.petugas]||'Petugas gudang')}${g.pengirim?', pengirim: '+esc(g.pengirim):''}</p>
+    <div class="stamp ${cls}">${esc(g.keputusan)}</div>
+    <div class="wrap" style="margin-top:12px"><table><thead><tr><th>Barang</th><th>PO</th><th>SJ</th><th>Fisik</th><th>Rusak</th><th>Status</th></tr></thead><tbody>${g.items.map(r=>`<tr><td><b>${esc(r.nama)}</b>${r.notes?.length?`<div class="small">${esc(r.notes.join('. '))}</div>`:''}</td><td class="num">${fmt(r.po)}</td><td class="num">${r.sj??'-'}</td><td class="num">${fmt(r.fisik)}</td><td class="num">${fmt(r.rusak)}</td><td>${stChip[r.status]||''}</td></tr>`).join('')}</tbody></table></div>
+    ${g.unknown?.length?`<p class="small">Kode di luar PO: ${g.unknown.map(esc).join(', ')}</p>`:''}
+    ${(g.inspeksi||[]).map(x=>`<div class="ai">Inspeksi foto AI: kondisi ${esc(x.kondisi)}. ${esc((x.temuan||[]).join('. '))}</div>`).join('')}
+    ${g.catatan?`<p><b>Catatan:</b> ${esc(g.catatan)}</p>`:''}
+    ${g.ttd?`<p class="small muted" style="margin:12px 0 4px">Tanda tangan pengirim</p><img src="${g.ttd}" alt="Tanda tangan pengirim" style="background:#fff;border:1px solid var(--line);border-radius:8px;max-height:120px">`:''}</div>`;
+  }
+  if(!list.length)return`<h2>Riwayat penerimaan</h2><p class="muted">Belum ada penerimaan. Bukti terima digital (GRN) akan tersimpan di sini.</p>`;
+  return`<h2>Riwayat penerimaan</h2>`+list.map(g=>`<button class="po card" data-act="grn" data-id="${esc(g.no)}"><div class="row between"><b>${esc(g.no)}</b><span class="chip ${g.keputusan.startsWith('Diterima')?(g.hasil==='Diterima'?'c-ok':'c-warn'):'c-bad'}">${esc(g.keputusan)}</span></div><div>${esc(g.poNo)}, ${esc(g.supplier)}</div><div class="small muted">${new Date(g.waktu).toLocaleString('id-ID')}</div></button>`).join('');
+}
+async function resolveNames(ids){
+  const need=[...new Set(ids)].filter(i=>!(i in names));if(!need.length||!user)return;
+  need.forEach(i=>names[i]='');
+  try{const ps=await user.profiles(need);let ch=false;need.forEach(i=>{const n=ps?.[i]?.name||'';if(n){names[i]=n;ch=true}});if(ch)render()}catch(e){}
+}
+
+function render(){
+  document.querySelectorAll('.tabs button').forEach(b=>b.setAttribute('aria-current',b.dataset.tab===tab?'true':'false'));
+  if(!ready){$('#app').innerHTML='<p class="muted">Memuat data gudang…</p>';return}
+  const a=document.activeElement,id=a&&a.id;let ss=null,se=null;try{ss=a.selectionStart;se=a.selectionEnd}catch(e){}
+  $('#app').innerHTML=tab==='terima'?viewTerima():tab==='po'?viewPO():tab==='stok'?viewStok():viewRiwayat();
+  bindSign();
+  if(id){const el=document.getElementById(id);if(el){el.focus({preventScroll:true});try{if(ss!=null)el.setSelectionRange(ss,se)}catch(e){}}}
+}
+
+function bindSign(){
+  const c=$('#sign');if(!c||!rx)return;const x=c.getContext('2d');
+  x.lineWidth=3;x.lineCap='round';x.lineJoin='round';x.strokeStyle='#15212B';
+  if(rx.sign){const im=new Image();im.onload=()=>x.drawImage(im,0,0);im.src=rx.sign}
+  let on=false;const pt=e=>{const r=c.getBoundingClientRect();return[(e.clientX-r.left)*c.width/r.width,(e.clientY-r.top)*c.height/r.height]};
+  c.onpointerdown=e=>{on=true;c.setPointerCapture(e.pointerId);const[a,b]=pt(e);x.beginPath();x.moveTo(a,b)};
+  c.onpointermove=e=>{if(!on)return;const[a,b]=pt(e);x.lineTo(a,b);x.stroke()};
+  c.onpointerup=c.onpointercancel=()=>{if(!on)return;on=false;rx.sign=c.toDataURL('image/png')};
+}
+
+async function aiReadSJ(files,text){
+  if(!sample)return;const po=state.pos[rx.poId];ai.busy='sj';render();
+  const prompt=`Kamu membantu petugas gudang memverifikasi barang masuk.
+Daftar barang di Purchase Order ${po.no} dari ${po.supplier} (JSON): ${JSON.stringify(po.items.map(i=>({sku:i.sku,nama:i.nama,satuan:i.satuan,qty_po:i.qty})))}
+${files?'Gambar terlampir adalah foto surat jalan (delivery note) dari supplier.':'Teks surat jalan dari supplier:\n"""\n'+text+'\n"""'}
+Baca setiap baris barang di surat jalan. Cocokkan tiap baris ke SKU di PO walaupun namanya ditulis berbeda (singkatan, merek, ukuran). Konversikan jumlah ke satuan PO hanya jika isi per kemasan tertulis jelas.
+Balas HANYA dengan JSON berbentuk:
+{"nomor_surat_jalan": string atau null, "baris":[{"teks_asli": string, "sku": string atau null, "qty": number atau null, "yakin": "tinggi"|"sedang"|"rendah", "alasan": string}], "catatan": string}
+Isi sku dengan null jika baris tidak cocok dengan barang mana pun di PO. Tulis alasan dan catatan dalam bahasa Indonesia, singkat.`;
+  try{
+    const res=await sample.json(prompt,files?{images:files}:{});
+    rx.aiSJ=res;(res.baris||[]).forEach(b=>{if(b.sku&&po.items.some(i=>i.sku===b.sku)&&typeof b.qty==='number')rx.sj[b.sku]=b.qty});
+    if(res.nomor_surat_jalan&&!rx.sjNo)rx.sjNo=res.nomor_surat_jalan;rx.showSJText=false;toast('Jumlah surat jalan terisi dari hasil baca AI');
+  }catch(e){toast(e.code==='not_granted'?'Izin AI tidak diberikan':e.code==='rate_limited'?'AI sedang sibuk, coba sebentar lagi':'AI gagal membaca dokumen. Isi jumlah secara manual.')}
+  ai.busy=null;render();
+}
+async function aiInspect(files){
+  if(!sample)return;const po=state.pos[rx.poId];ai.busy='foto';render();
+  const prompt=`Foto terlampir adalah barang yang baru diterima di gudang untuk PO ${po.no} (barang: ${po.items.map(i=>i.nama).join(', ')}).
+Periksa kondisi kemasan: penyok, sobek, basah atau bocor, segel rusak, label tidak terbaca, tanda kedaluwarsa jika terlihat.
+Balas HANYA dengan JSON: {"kondisi":"baik"|"rusak"|"ragu","temuan":[string],"saran":string}. Bahasa Indonesia, singkat.`;
+  try{const res=await sample.json(prompt,{images:files});rx.inspeksi.push({kondisi:res.kondisi||'ragu',temuan:res.temuan||[],saran:res.saran||''})}
+  catch(e){toast(e.code==='not_granted'?'Izin AI tidak diberikan':'AI gagal memeriksa foto. Coba foto yang lebih jelas.')}
+  ai.busy=null;render();
+}
+
+function suggestLokasi(){
+  const used=new Set(Object.values(state.stok).map(s=>s.lokasi));
+  for(const z of['A','B','C','D'])for(let n=1;n<=20;n++){const l=z+'-'+String(n).padStart(2,'0');if(!used.has(l))return l}
+  return'E-01';
+}
+async function saveGRN(){
+  const ev=evaluate();
+  if(ev.rows.every(r=>r.fisik===0)){toast('Scan barang dulu sebelum menyimpan');return}
+  if(!rx.sign){toast('Minta tanda tangan pengirim dulu');return}
+  const po=clone(state.pos[rx.poId]);
+  const keputusan=ev.hasil==='Ditahan'?(rx.approved?'Diterima, disetujui supervisor':'Ditahan'):ev.hasil;
+  const accepted=keputusan!=='Ditahan';const d=new Date();
+  const id='GRN-'+d.toISOString().replace(/[-:T]/g,'').slice(0,14);
+  const g={no:id,poId:rx.poId,poNo:po.no,supplier:po.supplier,waktu:d.toISOString(),petugas:uid,hasil:ev.hasil,keputusan,items:ev.rows,unknown:rx.unknown,sjNo:rx.sjNo,pengirim:rx.pengirim,catatan:rx.catatan,inspeksi:rx.inspeksi,ttd:rx.sign};
+  const btn=$('[data-act="savegrn"]');if(btn){btn.disabled=true;btn.textContent='Menyimpan…'}
+  try{
+    await put('grn',id,g);
+    if(accepted)for(const r of ev.rows){if(r.baik<=0)continue;const cur=clone(state.stok[r.sku]);
+      await put('stok',r.sku,{sku:r.sku,nama:r.nama,satuan:r.satuan,qty:(Number(cur.qty)||0)+r.baik,lokasi:cur.lokasi||suggestLokasi(),update:d.toISOString()})}
+    po.status=accepted?'Diterima':'Ditahan';po.grn=id;await put('pos',g.poId,po);
+    rx=null;tab='riwayat';grnView=id;toast(accepted?'Diterima. Stok sudah bertambah.':'Disimpan sebagai ditahan. Stok belum bertambah.');render();
+  }catch(e){toast(e.message);if(btn){btn.disabled=false;btn.textContent='Simpan penerimaan'}}
+}
+
+document.addEventListener('click',async e=>{
+  const tb=e.target.closest('.tabs button');if(tb){tab=tb.dataset.tab;grnView=null;render();window.scrollTo(0,0);return}
+  const b=e.target.closest('[data-act]');if(!b)return;const act=b.dataset.act;
+  if(act==='start')startRx(b.dataset.id);
+  else if(act==='cancelrx'){rx=null;render()}
+  else if(act==='newpo'){tab='po';const n=Object.keys(state.pos).length+1;poDraft={no:'PO-'+new Date().getFullYear()+'-'+String(n).padStart(4,'0'),supplier:'',items:[{sku:'',barcode:'',nama:'',qty:'',satuan:'pcs'}]};render()}
+  else if(act==='additem'){poDraft.items.push({sku:'',barcode:'',nama:'',qty:'',satuan:'pcs'});render()}
+  else if(act==='delitem'){poDraft.items.splice(Number(b.dataset.i),1);render()}
+  else if(act==='cancelpo'){poDraft=null;render()}
+  else if(act==='savepo'){
+    const items=poDraft.items.filter(i=>i.sku.trim()&&i.nama.trim()&&Number(i.qty)>0).map(i=>({sku:i.sku.trim(),barcode:i.barcode.trim(),nama:i.nama.trim(),qty:Number(i.qty),satuan:i.satuan.trim()||'pcs'}));
+    if(!poDraft.no.trim()||!poDraft.supplier.trim()){toast('Isi nomor PO dan nama supplier');return}
+    if(!items.length){toast('Tambahkan minimal satu barang dengan SKU, nama, dan jumlah');return}
+    const id=poDraft.no.trim().replace(/[^A-Za-z0-9_\-.]/g,'-');
+    try{await put('pos',id,{no:poDraft.no.trim(),supplier:poDraft.supplier.trim(),tanggal:new Date().toISOString().slice(0,10),status:'Terbuka',items});poDraft=null;toast('PO disimpan');render()}catch(err){toast(err.message)}
+  }
+  else if(act==='savetol'){const v=Math.max(0,Math.min(50,Number($('#tol').value)||0));try{await put('config','settings',{...clone(state.config.settings),toleransi:v});toast('Toleransi '+v+'% disimpan')}catch(err){toast(err.message)}}
+  else if(act==='sjtextshow'){rx.showSJText=!rx.showSJText;render()}
+  else if(act==='sjtext'){const t=$('#sjtext').value.trim();rx.sjText=t;if(!t){toast('Tempel teks surat jalan dulu');return}aiReadSJ(null,t)}
+  else if(act==='clearunk'){rx.unknown=[];render()}
+  else if(act==='clearsign'){rx.sign=null;render()}
+  else if(act==='appr'){rx.approved=b.checked}
+  else if(act==='savegrn')saveGRN();
+  else if(act==='grn'){grnView=b.dataset.id;render();window.scrollTo(0,0)}
+  else if(act==='back'){grnView=null;render()}
+});
+document.addEventListener('keydown',e=>{if(e.target.id==='scan'&&e.key==='Enter'){e.preventDefault();const v=e.target.value;e.target.value='';scan(v)}});
+document.addEventListener('change',e=>{
+  const t=e.target;
+  if(t.dataset.q&&rx){const v=t.value===''?(t.dataset.q==='sj'?'':0):Math.max(0,Number(t.value)||0);rx[t.dataset.q][t.dataset.sku]=v;rx.last=null;render()}
+  else if(t.id==='mult'&&rx){rx.mult=Math.max(1,parseInt(t.value,10)||1)}
+  else if(t.id==='sjfile'&&t.files?.length)aiReadSJ(t.files,null);
+  else if(t.id==='inspfile'&&t.files?.length)aiInspect(t.files);
+});
+document.addEventListener('input',e=>{
+  const t=e.target;
+  if(t.dataset.bind&&rx)rx[t.dataset.bind]=t.value;
+  else if(t.dataset.d&&poDraft)poDraft[t.dataset.d]=t.value;
+  else if(t.dataset.di!=null&&poDraft)poDraft.items[Number(t.dataset.di)][t.dataset.k]=t.value;
+  else if(t.id==='stokq'){stokQ=t.value;render()}
+});
+const MASCOT=$('#fab svg').outerHTML;
+let chat=[],bBusy=false,bCtl=null,bFile=null,meName='';
+const SUGG=['Cara pakai aplikasi ini gimana?','Ringkas kondisi gudang hari ini','Grafik stok per barang','Supplier mana yang paling sering bermasalah?'];
+const GUIDE=`Menu "Terima barang": pilih PO yang menunggu, lalu (1) foto surat jalan atau tempel teksnya supaya AI mengisi jumlah surat jalan, (2) scan barcode/SKU barang fisik lalu Enter (kolom kecil di kanan = jumlah per scan, untuk karton), opsional foto kondisi barang untuk dicek AI, (3) lihat tabel pencocokan PO vs surat jalan vs fisik vs rusak dan keputusan otomatis (Diterima, Diterima dengan catatan, Ditahan), (4) tanda tangan pengirim lalu Simpan penerimaan. Barang Ditahan bisa diterima jika dicentang "Disetujui supervisor". Setelah disimpan, bukti terima digital (GRN) masuk Riwayat dan stok bertambah otomatis, barang baru diberi lokasi rak saran. Menu "PO": atur toleransi selisih (%) dan buat PO baru. Menu "Stok": stok real-time dan lokasi rak, bisa dicari. Menu "Riwayat": daftar GRN, ketuk untuk melihat detail dan tanda tangan. Label risiko supplier dihitung dari persentase kiriman yang tidak sesuai.`;
+function md(t){const lines=esc(t).split('\n');let h='',inL=false;for(let l of lines){l=l.replace(/^#+\s*/,'').replace(/\*\*(.+?)\*\*/g,'<b>$1</b>');const m=l.match(/^\s*(?:[-•*]|\d+\.)\s+(.*)/);if(m){if(!inL){h+='<ul>';inL=true}h+='<li>'+m[1]+'</li>'}else{if(inL){h+='</ul>';inL=false}if(l.trim())h+='<p>'+l+'</p>'}}if(inL)h+='</ul>';return h}
+function chartHTML(c){const max=Math.max(...c.data.map(d=>d.nilai),1);return`<div class="chart"><h4>${esc(c.judul)}</h4>${c.data.map(d=>`<div class="bar"><span>${esc(d.label)}</span><i style="width:${Math.max(2,d.nilai/max*100)}%"></i><span>${fmt(d.nilai)}${c.satuan?' '+esc(c.satuan):''}</span></div>`).join('')}</div>`}
+function msgHTML(m){return m.role==='user'?esc(m.content).replace(/\n/g,'<br>')+(m.img?`<span class="att">Foto: ${esc(m.img)}</span>`:''):(m.content?md(m.content):'<span class="dots">Gudi sedang berpikir</span>')+(m.charts||[]).map(chartHTML).join('')}
+function updMsg(i){const el=$('#m'+i);if(el){el.innerHTML=msgHTML(chat[i]);const b=$('#bbody');b.scrollTop=b.scrollHeight}}
+function renderChat(){
+  const b=$('#bbody');
+  if(!chat.length)b.innerHTML=`<div class="hello">${MASCOT}<h3>Halo${meName?', '+esc(meName.split(' ')[0]):''}! Gudi siap bantu</h3><p class="small muted">Tanya soal PO, stok, atau penerimaan barang, minta grafik, atau kirim foto lalu tanyakan maksudnya.</p></div>`+(sample?SUGG.map(q=>`<button class="sugg" data-b="sugg">${esc(q)}</button>`).join(''):'<p class="small muted" style="text-align:center">Gudi memakai AI dari Claude. Buka halaman ini di Claude untuk mengobrol dengan Gudi.</p>');
+  else b.innerHTML=chat.map((m,i)=>`<div class="msg ${m.role==='user'?'u':'a'}" id="m${i}">${msgHTML(m)}</div>`).join('');
+  b.scrollTop=b.scrollHeight;
+  const s=$('#bsend');s.textContent=bBusy?'Stop':'Kirim';s.dataset.b=bBusy?'stop':'send';
+  $('#bimg').innerHTML=caps?.images&&!bBusy?`<label class="file">+ Foto<input type="file" id="bfile" accept="${esc(caps.images.mediaTypes.join(','))}"></label>`:'';
+  $('#battach').innerHTML=bFile?`<span class="chip c-n">${esc(bFile.name.length>18?bFile.name.slice(0,16)+'…':bFile.name)} <button class="ghost" data-b="unfile" aria-label="Hapus foto" style="min-height:0;padding:0 4px;border:0">×</button></span>`:'';
+}
+function dataContext(){
+  const pos=Object.values(state.pos).map(p=>({no:p.no,supplier:p.supplier,tanggal:p.tanggal,status:p.status,barang:p.items.map(i=>`${i.nama} (${i.sku}) ${i.qty} ${i.satuan}`)}));
+  const stok=Object.values(state.stok).map(s=>({sku:s.sku,nama:s.nama,qty:s.qty,satuan:s.satuan,lokasi:s.lokasi,diperbarui:s.update}));
+  const grn=Object.values(state.grn).sort((a,b)=>String(b.waktu).localeCompare(String(a.waktu))).slice(0,40).map(g=>({no:g.no,po:g.poNo,supplier:g.supplier,waktu:g.waktu,hasil:g.hasil,keputusan:g.keputusan,selisih:(g.items||[]).filter(r=>r.status!=='sesuai').map(r=>r.nama+': '+(r.notes||[]).join(', ')),inspeksi_foto:(g.inspeksi||[]).map(x=>x.kondisi)}));
+  const layar={menu_terbuka:tab};
+  if(rx&&state.pos[rx.poId]){const ev=evaluate();layar.penerimaan_berjalan={po:state.pos[rx.poId].no,hasil_sementara:ev.hasil,kode_di_luar_po:rx.unknown,baris:ev.rows.map(r=>({barang:r.nama,po:r.po,surat_jalan:r.sj,fisik:r.fisik,rusak:r.rusak,status:r.status}))}}
+  return{hari_ini:new Date().toLocaleDateString('id-ID',{weekday:'long',day:'numeric',month:'long',year:'numeric'}),toleransi_persen:tol(),layar,po:pos,stok,penerimaan_grn:grn};
+}
+async function sendBuddy(text){
+  text=(text||'').trim();if(!text&&!bFile)return;
+  if(!sample){toast('Gudi belum tersedia di tampilan ini');return}
+  if(!text)text='Tolong jelaskan foto ini.';
+  const file=bFile;bFile=null;$('#bq').value='';
+  chat.push({role:'user',content:text,img:file?.name});const idx=chat.push({role:'assistant',content:'',charts:[]})-1;
+  bBusy=true;bCtl=new AbortController();renderChat();
+  const instr=`Kamu adalah Gudi, asisten AI yang ramah di aplikasi gudang "Gudang tanpa kertas". Jawab dalam bahasa Indonesia yang santai tapi sopan, singkat dan langsung ke inti, pakai poin jika membantu. Gunakan hanya data di bawah; jangan mengarang angka. Jika data yang ditanya tidak ada, katakan terus terang dan sarankan langkahnya.${caps?.tools?' Jika pengguna meminta grafik atau perbandingan angka, panggil alat tampilkan_grafik lalu beri ringkasan singkat. Jika pengguna ingin membuka menu tertentu, panggil buka_menu.':''}
+${meName?'Nama pengguna: '+meName+'.':''}
+PANDUAN APLIKASI: ${GUIDE}
+DATA GUDANG SAAT INI (JSON): ${JSON.stringify(dataContext())}
+${file?'Pengguna melampirkan satu foto (terlampir). Jelaskan isinya dalam konteks gudang bila relevan.':''}
+PESAN PENGGUNA: ${text}`;
+  const turns=[];for(const m of [...chat.slice(0,idx-1).filter(m=>m.content).slice(-10).map(m=>({role:m.role,content:m.content})),{role:'user',content:instr}]){const l=turns[turns.length-1];if(l&&l.role===m.role)l.content+='\n\n'+m.content;else turns.push({...m})}
+  while(turns.length&&turns[0].role!=='user')turns.shift();
+  const opts={signal:bCtl.signal,onText:({text})=>{chat[idx].content=text;updMsg(idx)}};
+  if(file)opts.images=file;
+  if(caps?.tools)opts.tools=[
+    {name:'tampilkan_grafik',description:'Menampilkan grafik batang di dalam chat. Pakai saat pengguna meminta grafik atau perbandingan angka. Mengembalikan "ok".',
+     inputSchema:{type:'object',properties:{judul:{type:'string'},satuan:{type:'string'},data:{type:'array',items:{type:'object',properties:{label:{type:'string'},nilai:{type:'number'}},required:['label','nilai']}}},required:['judul','data']},
+     execute(inp){const data=(Array.isArray(inp.data)?inp.data:[]).slice(0,20).map(d=>({label:String(d?.label??''),nilai:Number(d?.nilai)||0}));if(!data.length)throw new Error('data grafik kosong');chat[idx].charts.push({judul:String(inp.judul||'Grafik'),satuan:String(inp.satuan||''),data});updMsg(idx);return'ok, grafik sudah tampil di chat'}},
+    {name:'buka_menu',description:'Membuka menu aplikasi untuk pengguna: terima, po, stok, atau riwayat. Mengembalikan "ok".',
+     inputSchema:{type:'object',properties:{menu:{type:'string',enum:['terima','po','stok','riwayat']}},required:['menu']},
+     execute(inp){const m=String(inp.menu);if(!['terima','po','stok','riwayat'].includes(m))throw new Error('menu tidak dikenal');tab=m;grnView=null;render();return'ok'}}];
+  else opts.cache=false;
+  try{const r=await sample(turns,opts);chat[idx].content=r.text||chat[idx].content||(chat[idx].charts.length?'':'(Tidak ada jawaban.)');if(r.truncated)chat[idx].content+='\n\n(Jawaban terpotong.)'}
+  catch(e){chat[idx].content=(e&&e.text?e.text+'\n\n':'')+(e?.code==='cancelled'?'(Dihentikan.)':e?.code==='not_granted'?'Gudi butuh izin memakai AI. Izinkan saat diminta, lalu coba lagi.':e?.code==='rate_limited'?'Gudi sedang sibuk. Coba lagi sebentar.':e?.code==='image_rejected'?'Foto tidak bisa dibaca. Coba foto lain (JPG/PNG).':'Maaf, Gudi gagal menjawab. Coba lagi.')}
+  bBusy=false;bCtl=null;renderChat();
+}
+function openBuddy(){$('#buddy').hidden=false;$('#fab').hidden=true;renderChat();$('#bq').focus()}
+function closeBuddy(){$('#buddy').hidden=true;$('#fab').hidden=false;$('#fab').focus()}
+$('#fab').addEventListener('click',openBuddy);
+$('#buddy').addEventListener('click',e=>{const b=e.target.closest('[data-b]');if(!b)return;const a=b.dataset.b;
+  if(a==='close')closeBuddy();
+  else if(a==='new'){if(bCtl)bCtl.abort();chat=[];bFile=null;renderChat()}
+  else if(a==='sugg')sendBuddy(b.textContent);
+  else if(a==='send')sendBuddy($('#bq').value);
+  else if(a==='stop'){if(bCtl)bCtl.abort()}
+  else if(a==='unfile'){bFile=null;renderChat()}});
+$('#buddy').addEventListener('change',e=>{if(e.target.id==='bfile'&&e.target.files?.length){const f=e.target.files[0];if(caps?.images&&f.size>caps.images.maxInputBytes){toast('Foto terlalu besar');return}bFile=f;renderChat();$('#bq').focus()}});
+$('#bq').addEventListener('keydown',e=>{if(e.key==='Enter'&&!e.shiftKey){e.preventDefault();if(!bBusy)sendBuddy(e.target.value)}});
+document.addEventListener('keydown',e=>{if(e.key==='Escape'&&!$('#buddy').hidden)closeBuddy()});
+render();init();
+</script>
+</body>
+</html>

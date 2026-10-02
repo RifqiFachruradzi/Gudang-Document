@@ -1,0 +1,8 @@
+{
+  "name": "gudang-ai",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "description": "Aplikasi gudang tanpa kertas: verifikasi barang masuk dengan AI dan asisten Gudi",
+  "engines": { "node": ">=18" }
+}
